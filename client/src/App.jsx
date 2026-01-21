@@ -3,11 +3,11 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import './App.css'
 import AdminDashboard from "./admin/AdminDashboard"
-import ProtectedRoute from "./components/ProtectedRoute";
 import StudentDashboard from "./student/StudentDashboard";
 import StudentAnalytics from "./student/StudentAnalytics"
 import StudentHistory from "./student/StudentHistory";
 import StudentPerformance from "./student/StudentPerformance";
+import ProtectedRoute from "./components/protectedRoute";
 export default function App() {
   return (
     <BrowserRouter>
