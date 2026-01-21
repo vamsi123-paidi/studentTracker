@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const { protect, adminOnly } = require("../middleware/authMiddleware");
+const { protect, adminOnly ,studentOnly} = require("../middleware/authMiddleware");
 const {
   submitTaskByDate,
   getTodayStatus,
@@ -11,7 +11,6 @@ const {
   getStudentPerformance,
   getMyPerformance
 } = require("../controllers/submissionController");
-const { protect, studentOnly } = require("../middleware/authMiddleware");
 
 router.post("/submit", protect,studentOnly, submitTaskByDate);
 router.get("/today", protect, getTodayStatus);
