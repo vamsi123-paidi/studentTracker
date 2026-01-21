@@ -11,8 +11,9 @@ const {
   getStudentPerformance,
   getMyPerformance
 } = require("../controllers/submissionController");
+const { protect, studentOnly } = require("../middleware/authMiddleware");
 
-router.post("/submit", protect, submitTaskByDate);
+router.post("/submit", protect,studentOnly, submitTaskByDate);
 router.get("/today", protect, getTodayStatus);
 router.get("/history", protect, getStudentHistory);
 router.get("/my-performance", protect, getMyPerformance);
