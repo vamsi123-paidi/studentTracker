@@ -1,5 +1,6 @@
 const router = require("express").Router();
-const { protect, adminOnly ,studentOnly} = require("../middleware/authMiddleware");
+const { protect, adminOnly, studentOnly } = require("../middleware/authMiddleware");
+
 const {
   submitTaskByDate,
   getTodayStatus,
@@ -9,27 +10,24 @@ const {
   getAdminAnalytics,
   getMissedStudents,
   getStudentPerformance,
-  getMyPerformance
+  getMyPerformance,
+  getStudentProgress,
+  getLeaderboard,
+  getFilteredStudents 
 } = require("../controllers/submissionController");
 
-router.post("/submit", protect,studentOnly, submitTaskByDate);
+router.post("/submit", protect, studentOnly, submitTaskByDate);
 router.get("/today", protect, getTodayStatus);
 router.get("/history", protect, getStudentHistory);
 router.get("/my-performance", protect, getMyPerformance);
+router.get("/progress", protect, getStudentProgress);
+router.get("/leaderboard", protect, getLeaderboard);
+router.get("/filter", protect, adminOnly, getFilteredStudents);
 
-
-// ADMIN
 router.get("/pending", protect, adminOnly, getPendingByDate);
 router.patch("/review/:id", protect, adminOnly, reviewSubmission);
 router.get("/analytics", protect, adminOnly, getAdminAnalytics);
 router.get("/missed", protect, adminOnly, getMissedStudents);
-router.get(
-  "/performance/:id",
-  protect,
-  adminOnly,
-  getStudentPerformance
-);
-
-
+router.get("/performance/:id", protect, adminOnly, getStudentPerformance);
 
 module.exports = router;

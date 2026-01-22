@@ -22,6 +22,17 @@ export default function AdminDashboard() {
   );
   const [remark, setRemark] = useState("");
 
+  /* ================= FILTER STATES ================= */
+  const [filters, setFilters] = useState({
+    date: new Date().toISOString().split("T")[0],
+    college: "",
+    branch: "",
+    section: "",
+    status: ""
+  });
+
+  const [filteredStudents, setFilteredStudents] = useState([]);
+
   /* ================= DATA ================= */
 
   useEffect(() => {
@@ -44,6 +55,16 @@ export default function AdminDashboard() {
         .then(res => setPending(res.data));
     }
   }, [activeTab, reviewDate]);
+
+  /* ================= FILTER API ================= */
+
+  const fetchFilteredStudents = async () => {
+    const query = new URLSearchParams(filters).toString();
+    const res = await API.get(`/submissions/filter?${query}`);
+    setFilteredStudents(res.data);
+  };
+
+  /* ================= ACTIONS ================= */
 
   const createStudent = async () => {
     await API.post("/auth/register-student", form);
@@ -73,7 +94,7 @@ export default function AdminDashboard() {
     <div style={layout}>
       {/* SIDEBAR */}
       <aside style={sidebar}>
-        <h2 style={logo}>Admin</h2>
+        <h2 style={logo}>Admin Panel</h2>
 
         <Nav label="Dashboard" active={activeTab==="dashboard"} onClick={()=>setActiveTab("dashboard")} />
         <Nav label="Create Student" active={activeTab==="create"} onClick={()=>setActiveTab("create")} />
@@ -90,13 +111,12 @@ export default function AdminDashboard() {
 
       {/* CONTENT */}
       <main style={content}>
-        {/* DASHBOARD */}
+
+        {/* ================= DASHBOARD ================= */}
         {activeTab === "dashboard" && analytics && (
           <>
-            <h1 style={pageTitle}>Overview</h1>
-            <p style={pageDesc}>
-              Monitor daily activity, discipline, and submission health.
-            </p>
+            <h1 style={pageTitle}>Admin Overview</h1>
+            <p style={pageDesc}>Track submissions, discipline, and attendance.</p>
 
             <input
               type="date"
@@ -112,7 +132,88 @@ export default function AdminDashboard() {
               <Stat title="Missed" value={analytics.missingCount} red />
             </div>
 
-            <Section title="Missed Students">
+            {/* ================= FILTER SECTION ================= */}
+            <Section title="🎯 Advanced Filters">
+
+              <div style={filterGrid}>
+                <input
+                  type="date"
+                  value={filters.date}
+                  onChange={e => setFilters({ ...filters, date: e.target.value })}
+                  style={input}
+                />
+
+                <input
+                  placeholder="College"
+                  value={filters.college}
+                  onChange={e => setFilters({ ...filters, college: e.target.value })}
+                  style={input}
+                />
+
+                <input
+                  placeholder="Branch"
+                  value={filters.branch}
+                  onChange={e => setFilters({ ...filters, branch: e.target.value })}
+                  style={input}
+                />
+
+                <input
+                  placeholder="Section"
+                  value={filters.section}
+                  onChange={e => setFilters({ ...filters, section: e.target.value })}
+                  style={input}
+                />
+
+                <select
+                  value={filters.status}
+                  onChange={e => setFilters({ ...filters, status: e.target.value })}
+                  style={input}
+                >
+                  <option value="">All Status</option>
+                  <option value="submitted">Submitted</option>
+                  <option value="missed">Missed</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                  <option value="Pending">Pending</option>
+                </select>
+
+                <button style={primaryBtn} onClick={fetchFilteredStudents}>
+                  🔍 Apply Filter
+                </button>
+              </div>
+
+              <Card>
+                {filteredStudents.length === 0 ? (
+                  <Empty text="No students found with selected filters" />
+                ) : (
+                  <table style={table}>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>College</th>
+                        <th>Branch</th>
+                        <th>Section</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredStudents.map(s => (
+                        <tr key={s._id}>
+                          <td>{s.name}</td>
+                          <td>{s.email}</td>
+                          <td>{s.college || "-"}</td>
+                          <td>{s.branch || "-"}</td>
+                          <td>{s.section || "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </Card>
+            </Section>
+
+            {/* ================= MISSED STUDENTS ================= */}
+            <Section title="❌ Missed Students">
               {missedStudents.length === 0
                 ? <Empty text="No missed submissions 🎉" />
                 : missedStudents.map(s => (
@@ -123,12 +224,10 @@ export default function AdminDashboard() {
           </>
         )}
 
-        {/* CREATE */}
+        {/* ================= CREATE STUDENT ================= */}
         {activeTab === "create" && (
           <>
             <h1 style={pageTitle}>Create Student</h1>
-            <p style={pageDesc}>Add students securely to the system.</p>
-
             <Card>
               <Input placeholder="Name" value={form.name}
                 onChange={e=>setForm({...form,name:e.target.value})} />
@@ -143,12 +242,10 @@ export default function AdminDashboard() {
           </>
         )}
 
-        {/* STUDENTS */}
+        {/* ================= STUDENTS ================= */}
         {activeTab === "students" && (
           <>
             <h1 style={pageTitle}>Students</h1>
-            <p style={pageDesc}>View individual performance and discipline.</p>
-
             <Card>
               {students.map(s => (
                 <Row
@@ -176,11 +273,10 @@ export default function AdminDashboard() {
           </>
         )}
 
-        {/* REVIEW */}
+        {/* ================= REVIEW ================= */}
         {activeTab === "review" && (
           <>
             <h1 style={pageTitle}>Review Submissions</h1>
-            <p style={pageDesc}>Approve or reject daily tasks.</p>
 
             <input
               type="date"
@@ -255,130 +351,29 @@ const Section = ({ title, children }) => (
   </div>
 );
 
-const Card = ({ children }) => (
-  <div style={card}>{children}</div>
-);
-
-const Row = ({ left, right }) => (
-  <div style={row}>
-    <span>{left}</span>
-    <span>{right}</span>
-  </div>
-);
-
-const Input = props => (
-  <input {...props} style={input} />
-);
-
-const Empty = ({ text }) => (
-  <p style={{ textAlign: "center", color: "#94a3b8" }}>{text}</p>
-);
+const Card = ({ children }) => <div style={card}>{children}</div>;
+const Row = ({ left, right }) => <div style={row}><span>{left}</span><span>{right}</span></div>;
+const Input = props => <input {...props} style={input} />;
+const Empty = ({ text }) => <p style={{ textAlign: "center", color: "#94a3b8" }}>{text}</p>;
 
 /* ================= STYLES ================= */
 
-const layout = {
-  display: "flex",
-  height: "100vh",
-  background: "#020617",
-  color: "#f8fafc"
-};
-
-const sidebar = {
-  width: 240,
-  background: "#020617",
-  borderRight: "1px solid #1e293b",
-  padding: 20,
-  display: "flex",
-  flexDirection: "column"
-};
-
+const layout = { display: "flex", height: "100vh", background: "#020617", color: "#f8fafc" };
+const sidebar = { width: 240, borderRight: "1px solid #1e293b", padding: 20, display: "flex", flexDirection: "column" };
 const logo = { marginBottom: 20 };
-
-const content = {
-  flex: 1,
-  padding: 40,
-  overflowY: "auto"
-};
-
+const content = { flex: 1, padding: 40, overflowY: "auto" };
 const pageTitle = { fontSize: "2rem", marginBottom: 6 };
 const pageDesc = { color: "#94a3b8", marginBottom: 20 };
-
 const cards = { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 20 };
-
-const statCard = {
-  padding: 20,
-  borderRadius: 14,
-  border: "1px solid",
-  background: "rgba(15,23,42,0.6)"
-};
-
-const card = {
-  background: "rgba(15,23,42,0.7)",
-  padding: 20,
-  borderRadius: 16,
-  marginTop: 15
-};
-
-const row = {
-  display: "flex",
-  justifyContent: "space-between",
-  padding: "12px 0",
-  borderBottom: "1px solid #1e293b"
-};
-
-const input = {
-  width: "100%",
-  padding: "12px",
-  borderRadius: 10,
-  border: "1px solid #334155",
-  background: "#020617",
-  color: "#fff",
-  marginBottom: 12
-};
-
-const datePicker = {
-  padding: 10,
-  borderRadius: 10,
-  border: "1px solid #334155",
-  background: "#020617",
-  color: "#fff",
-  marginBottom: 20
-};
-
-const primaryBtn = {
-  padding: "12px 18px",
-  borderRadius: 10,
-  background: "#2563eb",
-  border: "none",
-  color: "#fff",
-  fontWeight: 600
-};
-
-const linkBtn = {
-  background: "none",
-  border: "none",
-  color: "#38bdf8",
-  cursor: "pointer"
-};
-
-const approveBtn = {
-  background: "#22c55e",
-  border: "none",
-  padding: "8px 12px",
-  borderRadius: 8,
-  marginRight: 6
-};
-
-const rejectBtn = {
-  background: "#ef4444",
-  border: "none",
-  padding: "8px 12px",
-  borderRadius: 8
-};
-
-const reviewRow = {
-  display: "flex",
-  justifyContent: "space-between",
-  gap: 20,
-  marginBottom: 15
-};
+const statCard = { padding: 20, borderRadius: 14, border: "1px solid", background: "rgba(15,23,42,0.6)" };
+const card = { background: "rgba(15,23,42,0.7)", padding: 20, borderRadius: 16, marginTop: 15 };
+const row = { display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid #1e293b" };
+const input = { padding: 10, borderRadius: 10, border: "1px solid #334155", background: "#020617", color: "#fff" };
+const datePicker = input;
+const primaryBtn = { padding: "12px 18px", borderRadius: 10, background: "#2563eb", border: "none", color: "#fff", fontWeight: 600 };
+const linkBtn = { background: "none", border: "none", color: "#38bdf8", cursor: "pointer" };
+const approveBtn = { background: "#22c55e", border: "none", padding: "8px 12px", borderRadius: 8, marginRight: 6 };
+const rejectBtn = { background: "#ef4444", border: "none", padding: "8px 12px", borderRadius: 8 };
+const reviewRow = { display: "flex", justifyContent: "space-between", gap: 20, marginBottom: 15 };
+const filterGrid = { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 15 };
+const table = { width: "100%", borderCollapse: "collapse", marginTop: 10 };

@@ -18,7 +18,30 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ["admin", "student"],
     default: "student"
+  },
+
+  // ✅ STUDENT PROFILE FIELDS (NEW)
+  rollNo: {
+    type: String,
+    default: ""
+  },
+  college: {
+    type: String,
+    default: ""
+  },
+  branch: {
+    type: String,
+    default: ""
+  },
+  section: {
+    type: String,
+    default: ""
+  },
+  gender: {
+    type: String,
+    default: ""
   }
-});
+
+}, { timestamps: true });
 
 module.exports = mongoose.model("User", userSchema);

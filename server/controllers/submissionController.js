@@ -217,3 +217,99 @@ exports.getStudentPerformance = async (req, res) => {
   });
 };
 
+/**
+ * STUDENT → PROGRESS (Approved / Pending / Rejected)
+ */
+exports.getStudentProgress = async (req, res) => {
+  try {
+    const submissions = await Submission.find({
+      studentId: req.user.id
+    });
+
+    const totalDays = submissions.length;
+    const approved = submissions.filter(s => s.status === "Approved").length;
+    const rejected = submissions.filter(s => s.status === "Rejected").length;
+    const pending = submissions.filter(s => s.status === "Pending").length;
+
+    res.json({
+      totalDays,
+      approved,
+      rejected,
+      pending
+    });
+  } catch (err) {
+    console.error("Progress Error:", err);
+    res.status(500).json({ message: "Failed to fetch progress" });
+  }
+};
+
+
+/**
+ * STUDENT → LEADERBOARD
+ */
+exports.getLeaderboard = async (req, res) => {
+  try {
+    const leaderboard = await Submission.aggregate([
+      {
+        $match: { status: "Approved" }
+      },
+      {
+        $group: {
+          _id: "$studentId",
+          score: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { score: -1 }
+      },
+      {
+        $limit: 10
+      }
+    ]);
+
+    // OPTIONAL: populate student names (recommended 🔥)
+    const populated = await User.populate(leaderboard, {
+      path: "_id",
+      select: "name email"
+    });
+
+    res.json(populated);
+  } catch (err) {
+    console.error("Leaderboard Error:", err);
+    res.status(500).json({ message: "Failed to fetch leaderboard" });
+  }
+};
+
+exports.getFilteredStudents = async (req, res) => {
+  const { date, college, branch, section, status } = req.query;
+
+  let studentQuery = { role: "student" };
+
+  if (college) studentQuery.college = college;
+  if (branch) studentQuery.branch = branch;
+  if (section) studentQuery.section = section;
+
+  const students = await User.find(studentQuery).select("name email college branch section");
+
+  const submissions = await Submission.find(date ? { date } : {}).populate("studentId");
+
+  let result = [];
+
+  if (status === "missed") {
+    const submittedIds = submissions.map(s => s.studentId._id.toString());
+    result = students.filter(s => !submittedIds.includes(s._id.toString()));
+  }
+  else if (status === "submitted") {
+    result = submissions.map(s => s.studentId);
+  }
+  else if (["Approved", "Rejected", "Pending"].includes(status)) {
+    result = submissions.filter(s => s.status === status).map(s => s.studentId);
+  }
+  else {
+    result = students;
+  }
+
+  res.json(result);
+};
+
+
