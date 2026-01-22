@@ -8,7 +8,8 @@ connectDB();
 const app = express();
 app.use(cors({
   origin: [
-    "https://student-tracker-aw6t.vercel.app"
+    "http://localhost:5173", // Vite local
+    "https://student-tracker-aw6t.vercel.app" // production frontend
   ],
   credentials: true
 }));

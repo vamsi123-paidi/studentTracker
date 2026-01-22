@@ -63,7 +63,106 @@ exports.getAllStudents = async (req, res) => {
   const students = await User.find({ role: "student" })
     .select("-password");
 
-  res.json(students);
+  res.json(students);   
+};
+
+/**
+ * GET STUDENT PROFILE
+ */
+exports.getProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch profile" });
+  }
+};
+
+/**
+ * UPDATE STUDENT PROFILE
+ */
+exports.updateProfile = async (req, res) => {
+  try {
+    const {
+      name,
+      rollNo,
+      college,
+      branch,
+      section,
+      gender,
+      oldPassword,
+      newPassword
+    } = req.body;
+
+    const user = await User.findById(req.user.id);
+
+    // ✅ Update profile fields
+    user.name = name || user.name;
+    user.rollNo = rollNo || user.rollNo;
+    user.college = college || user.college;
+    user.branch = branch || user.branch;
+    user.section = section || user.section;
+    user.gender = gender || user.gender;
+
+    // ✅ If password fields provided → update password
+    if (oldPassword && newPassword) {
+      const isMatch = await bcrypt.compare(oldPassword, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ message: "Old password is incorrect" });
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      user.password = hashedPassword;
+
+      // ✅ Disable force change flag after update
+      user.forcePasswordChange = false;
+    }
+
+    await user.save();
+
+    res.json({
+      message: "Profile updated successfully ✅",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        rollNo: user.rollNo,
+        college: user.college,
+        branch: user.branch,
+        section: user.section,
+        gender: user.gender,
+        forcePasswordChange: user.forcePasswordChange
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to update profile" });
+  }
+};
+
+
+/**
+ * CHANGE PASSWORD (STUDENT)
+ */
+exports.changePassword = async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+
+    const user = await User.findById(req.user.id);
+
+    const isMatch = await bcrypt.compare(oldPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Old password is incorrect" });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+
+    res.json({ message: "Password updated successfully ✅" });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to change password" });
+  }
 };
 
 
