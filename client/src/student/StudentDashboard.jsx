@@ -233,7 +233,20 @@ export default function StudentDashboard() {
             <input placeholder="Full Name" value={profile.name} onChange={e => setProfile({ ...profile, name: e.target.value })} style={input} />
             <input placeholder="Roll Number" value={profile.rollNo} onChange={e => setProfile({ ...profile, rollNo: e.target.value })} style={input} />
             <input placeholder="College" value={profile.college} onChange={e => setProfile({ ...profile, college: e.target.value })} style={input} />
-            <input placeholder="Branch" value={profile.branch} onChange={e => setProfile({ ...profile, branch: e.target.value })} style={input} />
+            <label style={label}>Branch</label>
+            <select
+              value={profile.branch}
+              onChange={e => setProfile({ ...profile, branch: e.target.value })}
+              style={input}
+            >
+              <option value="">Select Branch</option>
+              <option value="CSE-A">CSE-A</option>
+              <option value="CSE-C">CSE-C</option>
+              <option value="AIML">AIML</option>
+              <option value="CSM">CSM</option>
+              <option value="CSD">CSD</option>
+            </select>
+
             <input placeholder="Section" value={profile.section} onChange={e => setProfile({ ...profile, section: e.target.value })} style={input} />
 
             <select value={profile.gender} onChange={e => setProfile({ ...profile, gender: e.target.value })} style={input}>
