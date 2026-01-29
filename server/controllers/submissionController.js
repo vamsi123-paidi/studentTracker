@@ -1,5 +1,6 @@
 const Submission = require("../models/Submission");
 const User = require("../models/User");
+const ExcelJS = require("exceljs");
 
 exports.submitTaskByDate = async (req, res) => {
   const studentId = req.user.id;
@@ -402,3 +403,147 @@ exports.getBranchAnalytics = async (req, res) => {
 
 
 
+exports.downloadBranchReport = async (req, res) => {
+  try {
+    const { date, branch } = req.query;
+
+    if (!date) {
+      return res.status(400).json({ message: "Date is required" });
+    }
+
+    // 1️⃣ Get students (branch filter optional)
+    let studentQuery = { role: "student" };
+    if (branch && branch !== "all") {
+      studentQuery.branch = branch;
+    }
+
+    const students = await User.find(studentQuery).select("name rollNo branch");
+
+    // 2️⃣ Get submissions for that date
+    const submissions = await Submission.find({ date }).populate("studentId");
+
+    const submittedMap = {};
+    submissions.forEach(s => {
+      if (s.studentId) {
+        submittedMap[s.studentId._id.toString()] = true;
+      }
+    });
+
+    // 3️⃣ Prepare Excel data
+    const reportData = students.map(s => ({
+      name: s.name,
+      rollNo: s.rollNo || "-",
+      branch: s.branch || "-",
+      status: submittedMap[s._id.toString()] ? "Done" : "Missed",
+      date
+    }));
+
+    // 4️⃣ Create Excel file
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Branch Report");
+
+    sheet.columns = [
+      { header: "Name", key: "name", width: 25 },
+      { header: "Roll No", key: "rollNo", width: 15 },
+      { header: "Branch", key: "branch", width: 15 },
+      { header: "Status", key: "status", width: 12 },
+      { header: "Date", key: "date", width: 15 }
+    ];
+
+    reportData.forEach(row => sheet.addRow(row));
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=${branch || "all"}-report-${date}.xlsx`
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+
+  } catch (err) {
+    console.error("Excel Error:", err);
+    res.status(500).json({ message: "Failed to generate report" });
+  }
+};
+
+exports.getStudentPerformance = async (req, res) => {
+  try {
+    const studentId = req.params.id;
+
+    // ✅ get all valid task days (not holidays)
+    const taskDays = await TaskDay.find({ isHoliday: false });
+    const totalTaskDays = taskDays.length;
+
+    // ✅ student submissions
+    const submissions = await Submission.find({ studentId });
+
+    const submittedDays = submissions.length;
+    const missedDays = totalTaskDays - submittedDays;
+
+    const consistency =
+      totalTaskDays === 0
+        ? "0%"
+        : ((submittedDays / totalTaskDays) * 100).toFixed(2) + "%";
+
+    res.json({
+      totalTaskDays,
+      submittedDays,
+      missedDays,
+      consistency
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Performance error" });
+  }
+};
+
+exports.searchStudentPerformance = async (req, res) => {
+  try {
+    const { q } = req.query;
+
+    if (!q) return res.json([]);
+
+    // ✅ Search by name / email / rollNo
+    const student = await User.findOne({
+      role: "student",
+      $or: [
+        { name: { $regex: q, $options: "i" } },
+        { email: { $regex: q, $options: "i" } },
+        { rollNo: { $regex: q, $options: "i" } }
+      ]
+    });
+
+    if (!student) return res.json(null);
+
+    // ✅ Performance calculation (simple version)
+    const submissions = await Submission.find({ studentId: student._id });
+
+    const totalDays = submissions.length;
+    const approved = submissions.filter(s => s.status === "Approved").length;
+    const rejected = submissions.filter(s => s.status === "Rejected").length;
+    const pending = submissions.filter(s => s.status === "Pending").length;
+
+    res.json({
+      student: {
+        id: student._id,
+        name: student.name,
+        email: student.email,
+        rollNo: student.rollNo,
+        branch: student.branch
+      },
+      performance: {
+        totalDays,
+        approved,
+        rejected,
+        pending
+      }
+    });
+  } catch (err) {
+    console.error("Search Error:", err);
+    res.status(500).json({ message: "Search failed" });
+  }
+};

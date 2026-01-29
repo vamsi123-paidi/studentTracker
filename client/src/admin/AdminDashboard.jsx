@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import API from "../services/api";
+import "./admindashboard.css";
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -9,7 +10,7 @@ export default function AdminDashboard() {
   const [missedStudents, setMissedStudents] = useState([]);
 
   const [analytics, setAnalytics] = useState(null);
-  const [branchAnalytics, setBranchAnalytics] = useState([]); // ✅ NEW
+  const [branchAnalytics, setBranchAnalytics] = useState([]);
 
   const [dashboardDate, setDashboardDate] = useState(
     new Date().toISOString().split("T")[0]
@@ -23,8 +24,9 @@ export default function AdminDashboard() {
     new Date().toISOString().split("T")[0]
   );
   const [remark, setRemark] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResult, setSearchResult] = useState(null);
 
-  /* ================= FILTER STATES ================= */
   const [filters, setFilters] = useState({
     date: new Date().toISOString().split("T")[0],
     college: "",
@@ -34,6 +36,7 @@ export default function AdminDashboard() {
   });
 
   const [filteredStudents, setFilteredStudents] = useState([]);
+  const [selectedBranch, setSelectedBranch] = useState("all");
 
   /* ================= DATA ================= */
 
@@ -49,7 +52,6 @@ export default function AdminDashboard() {
       API.get(`/submissions/missed?date=${dashboardDate}`)
         .then(res => setMissedStudents(res.data || []));
 
-      // ✅ Branch analytics
       API.get(`/submissions/branch-analytics?date=${dashboardDate}`)
         .then(res => setBranchAnalytics(res.data || []));
     }
@@ -103,19 +105,73 @@ export default function AdminDashboard() {
     setSelectedStudent(name);
   };
 
+  const downloadExcelReport = async () => {
+    try {
+      const res = await API.get(
+        `/submissions/branch-report?date=${dashboardDate}&branch=${selectedBranch}`,
+        { responseType: "blob" }
+      );
+
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `${selectedBranch}-report-${dashboardDate}.xlsx`
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error("Download Error:", err);
+      alert("Excel download failed ❌");
+    }
+  };
+
+  const searchStudent = async () => {
+    if (!searchQuery) return alert("Enter name/email/rollno");
+
+    try {
+      const res = await API.get(`/submissions/search-performance?q=${searchQuery}`);
+      setSearchResult(res.data);
+    } catch (err) {
+      console.error(err);
+      alert("Search failed ❌");
+    }
+  };
+
+  useEffect(() => {
+    const glow = document.querySelector(".cursor-glow");
+
+    const move = (e) => {
+      glow.style.left = e.clientX + "px";
+      glow.style.top = e.clientY + "px";
+    };
+
+    window.addEventListener("mousemove", move);
+    return () => window.removeEventListener("mousemove", move);
+  }, []);
+
   /* ================= UI ================= */
 
   return (
-    <div style={layout}>
+    <div className="admin-layout">
+      {/* futuristic background layers */}
+      <div className="ai-grid"></div>
+      <div className="particles"></div>
+      <div className="cursor-glow"></div>
+
+
       {/* SIDEBAR */}
-      <aside style={sidebar}>
-        <h2 style={logo}>Admin Panel</h2>
+      <aside className="sidebar">
+        <h2 className="logo">Admin Panel</h2>
 
         <Nav label="Dashboard" active={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")} />
         <Nav label="Create Student" active={activeTab === "create"} onClick={() => setActiveTab("create")} />
         <Nav label="Students" active={activeTab === "students"} onClick={() => setActiveTab("students")} />
         <Nav label="Review Tasks" active={activeTab === "review"} onClick={() => setActiveTab("review")} />
         <Nav label="Filter Students" active={activeTab === "filter"} onClick={() => setActiveTab("filter")} />
+        <Nav label="Search Student" active={activeTab === "search"} onClick={() => setActiveTab("search")} />
 
         <div style={{ marginTop: "auto" }}>
           <Nav label="Logout" danger onClick={() => {
@@ -126,34 +182,54 @@ export default function AdminDashboard() {
       </aside>
 
       {/* CONTENT */}
-      <main style={content}>
+      <main className="content">
 
-        {/* ================= DASHBOARD ================= */}
+        {/* DASHBOARD */}
         {activeTab === "dashboard" && analytics && (
           <>
-            <h1 style={pageTitle}>Admin Overview</h1>
+            <h1>Admin Overview</h1>
 
             <input
               type="date"
               value={dashboardDate}
               onChange={e => setDashboardDate(e.target.value)}
-              style={datePicker}
+              className="input"
+              style={{ maxWidth: 200, marginBottom: 10 }}
             />
 
-            <div style={cards}>
+            <div className="stats-grid">
               <Stat title="Total Students" value={analytics.totalStudents} />
-              <Stat title="Submitted" value={analytics.submittedCount} green />
-              <Stat title="Pending" value={analytics.pendingCount} yellow />
-              <Stat title="Missed" value={analytics.missingCount} red />
+              <Stat title="Submitted" value={analytics.submittedCount} />
+              <Stat title="Pending" value={analytics.pendingCount} />
+              <Stat title="Missed" value={analytics.missingCount} />
             </div>
 
-            {/* ✅ BRANCH ANALYTICS */}
             <Section title="📊 Branch-wise Analytics">
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+                {["all", "CSE-A", "CSE-C", "CSD", "CSM", "AIML"].map(b => (
+                  <button
+                    key={b}
+                    onClick={() => setSelectedBranch(b)}
+                    className="btn-primary"
+                    style={{
+                      background: selectedBranch === b ? "#2563eb" : "#020617",
+                      border: "1px solid #1e293b"
+                    }}
+                  >
+                    {b.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+
+              <button className="btn-primary" onClick={downloadExcelReport}>
+                📥 Download Branch Report
+              </button>
+
               <Card>
                 {branchAnalytics.length === 0 ? (
                   <Empty text="No branch data available" />
                 ) : (
-                  <table style={table}>
+                  <table className="table">
                     <thead>
                       <tr>
                         <th>Branch</th>
@@ -170,11 +246,11 @@ export default function AdminDashboard() {
                         <tr key={index}>
                           <td>{b.branch}</td>
                           <td>{b.total}</td>
-                          <td style={{ color: "#22c55e" }}>{b.submitted}</td>
-                          <td style={{ color: "#ef4444" }}>{b.missed}</td>
-                          <td style={{ color: "#16a34a" }}>{b.approved}</td>
-                          <td style={{ color: "#eab308" }}>{b.pending}</td>
-                          <td style={{ color: "#dc2626" }}>{b.rejected}</td>
+                          <td>{b.submitted}</td>
+                          <td>{b.missed}</td>
+                          <td>{b.approved}</td>
+                          <td>{b.pending}</td>
+                          <td>{b.rejected}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -183,7 +259,6 @@ export default function AdminDashboard() {
               </Card>
             </Section>
 
-            {/* MISSED STUDENTS */}
             <Section title="❌ Missed Students">
               {missedStudents.length === 0
                 ? <Empty text="No missed submissions 🎉" />
@@ -195,36 +270,26 @@ export default function AdminDashboard() {
           </>
         )}
 
-        {/* ================= FILTER TAB ================= */}
+        {/* FILTER */}
         {activeTab === "filter" && (
           <>
-            <h1 style={pageTitle}>🎯 Filter Students</h1>
+            <h1>🎯 Filter Students</h1>
 
             <Card>
-              <div style={filterGrid}>
+              <div className="filter-grid">
                 <input type="date" value={filters.date}
                   onChange={e => setFilters({ ...filters, date: e.target.value })}
-                  style={input}
-                />
-
-                <input placeholder="College" value={filters.college}
-                  onChange={e => setFilters({ ...filters, college: e.target.value })}
-                  style={input}
+                  className="input"
                 />
 
                 <input placeholder="Branch" value={filters.branch}
                   onChange={e => setFilters({ ...filters, branch: e.target.value })}
-                  style={input}
-                />
-
-                <input placeholder="Section" value={filters.section}
-                  onChange={e => setFilters({ ...filters, section: e.target.value })}
-                  style={input}
+                  className="input"
                 />
 
                 <select value={filters.status}
                   onChange={e => setFilters({ ...filters, status: e.target.value })}
-                  style={input}
+                  className="input"
                 >
                   <option value="">All</option>
                   <option value="submitted">Submitted</option>
@@ -234,7 +299,7 @@ export default function AdminDashboard() {
                   <option value="Pending">Pending</option>
                 </select>
 
-                <button style={primaryBtn} onClick={fetchFilteredStudents}>
+                <button className="btn-primary" onClick={fetchFilteredStudents}>
                   🔍 Search
                 </button>
               </div>
@@ -244,7 +309,7 @@ export default function AdminDashboard() {
               {filteredStudents.length === 0 ? (
                 <Empty text="No students found 🚫" />
               ) : (
-                <table style={table}>
+                <table className="table">
                   <thead>
                     <tr>
                       <th>Name</th>
@@ -271,10 +336,10 @@ export default function AdminDashboard() {
           </>
         )}
 
-        {/* ================= CREATE STUDENT ================= */}
+        {/* CREATE STUDENT */}
         {activeTab === "create" && (
           <>
-            <h1 style={pageTitle}>Create Student</h1>
+            <h1>Create Student</h1>
             <Card>
               <Input placeholder="Name" value={form.name}
                 onChange={e => setForm({ ...form, name: e.target.value })} />
@@ -282,28 +347,22 @@ export default function AdminDashboard() {
                 onChange={e => setForm({ ...form, email: e.target.value })} />
               <Input placeholder="Password" value={form.password}
                 onChange={e => setForm({ ...form, password: e.target.value })} />
-              <button style={primaryBtn} onClick={createStudent}>
+              <button className="btn-primary" onClick={createStudent}>
                 Create Student
               </button>
             </Card>
           </>
         )}
 
-        {/* ================= STUDENTS ================= */}
+        {/* STUDENTS */}
         {activeTab === "students" && (
           <>
-            <h1 style={pageTitle}>Students</h1>
+            <h1>Students</h1>
             <Card>
               {students.map(s => (
                 <Row
                   key={s._id}
                   left={`${s.name} (${s.email})`}
-                  right={
-                    <button style={linkBtn}
-                      onClick={() => fetchPerformance(s._id, s.name)}>
-                      View Performance
-                    </button>
-                  }
                 />
               ))}
             </Card>
@@ -320,23 +379,24 @@ export default function AdminDashboard() {
           </>
         )}
 
-        {/* ================= REVIEW ================= */}
+        {/* REVIEW */}
         {activeTab === "review" && (
           <>
-            <h1 style={pageTitle}>Review Submissions</h1>
+            <h1>Review Submissions</h1>
 
             <input
               type="date"
               value={reviewDate}
               onChange={e => setReviewDate(e.target.value)}
-              style={datePicker}
+              className="input"
+              style={{ maxWidth: 200 }}
             />
 
             <Card>
               {pending.length === 0 && <Empty text="No pending submissions" />}
 
               {pending.map(p => (
-                <div key={p._id} style={reviewRow}>
+                <div key={p._id} className="review-row">
                   <div>
                     <b>{p.studentId?.name || "Deleted Student"}</b>
                     <p>{p.studentId?.email || "-"}</p>
@@ -345,11 +405,11 @@ export default function AdminDashboard() {
                   <div>
                     <Input placeholder="Remark" value={remark}
                       onChange={e => setRemark(e.target.value)} />
-                    <button style={approveBtn}
+                    <button className="btn-success"
                       onClick={() => reviewSubmission(p._id, "Approved")}>
                       Approve
                     </button>
-                    <button style={rejectBtn}
+                    <button className="btn-danger"
                       onClick={() => reviewSubmission(p._id, "Rejected")}>
                       Reject
                     </button>
@@ -357,6 +417,43 @@ export default function AdminDashboard() {
                 </div>
               ))}
             </Card>
+          </>
+        )}
+
+        {/* SEARCH */}
+        {activeTab === "search" && (
+          <>
+            <h1>🔍 Search Student Performance</h1>
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <input
+                placeholder="Search by Name / Email / Roll No"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="input"
+              />
+              <button className="btn-primary" onClick={searchStudent}>
+                Search
+              </button>
+            </div>
+
+            {!searchResult && <Empty text="No student searched yet" />}
+
+            {searchResult && (
+              <Card>
+                <h3>👤 Student Details</h3>
+                <p><b>Name:</b> {searchResult.student.name}</p>
+                <p><b>Email:</b> {searchResult.student.email}</p>
+                <p><b>Roll No:</b> {searchResult.student.rollNo || "-"}</p>
+                <p><b>Branch:</b> {searchResult.student.branch || "-"}</p>
+
+                <h3>📊 Performance</h3>
+                <p>Total Days: {searchResult.performance.totalDays}</p>
+                <p>Approved: {searchResult.performance.approved}</p>
+                <p>Pending: {searchResult.performance.pending}</p>
+                <p>Rejected: {searchResult.performance.rejected}</p>
+              </Card>
+            )}
           </>
         )}
 
@@ -368,24 +465,16 @@ export default function AdminDashboard() {
 /* ================= COMPONENTS ================= */
 
 const Nav = ({ label, active, onClick, danger }) => (
-  <div onClick={onClick}
-    style={{
-      padding: "12px 16px",
-      borderRadius: 10,
-      cursor: "pointer",
-      background: active ? "#1e293b" : "transparent",
-      color: danger ? "#f87171" : "#e5e7eb",
-      fontWeight: 500
-    }}>
+  <div
+    onClick={onClick}
+    className={`nav-item ${active ? "nav-active" : ""} ${danger ? "nav-danger" : ""}`}
+  >
     {label}
   </div>
 );
 
-const Stat = ({ title, value, green, yellow, red }) => (
-  <div style={{
-    ...statCard,
-    borderColor: green ? "#22c55e" : yellow ? "#eab308" : red ? "#ef4444" : "#334155"
-  }}>
+const Stat = ({ title, value }) => (
+  <div className="stat-card">
     <p>{title}</p>
     <h2>{value}</h2>
   </div>
@@ -394,33 +483,11 @@ const Stat = ({ title, value, green, yellow, red }) => (
 const Section = ({ title, children }) => (
   <div style={{ marginTop: 30 }}>
     <h3>{title}</h3>
-    <Card>{children}</Card>
+    {children}
   </div>
 );
 
-const Card = ({ children }) => <div style={card}>{children}</div>;
-const Row = ({ left, right }) => <div style={row}><span>{left}</span><span>{right}</span></div>;
-const Input = props => <input {...props} style={input} />;
+const Card = ({ children }) => <div className="card">{children}</div>;
+const Row = ({ left, right }) => <div className="row"><span>{left}</span><span>{right}</span></div>;
+const Input = props => <input {...props} className="input" />;
 const Empty = ({ text }) => <p style={{ textAlign: "center", color: "#94a3b8" }}>{text}</p>;
-
-/* ================= STYLES ================= */
-
-const layout = { display: "flex", height: "100vh", background: "#020617", color: "#f8fafc" };
-const sidebar = { width: 240, borderRight: "1px solid #1e293b", padding: 20, display: "flex", flexDirection: "column" };
-const logo = { marginBottom: 20 };
-const content = { flex: 1, padding: 30, overflowY: "auto" };
-const pageTitle = { fontSize: "2rem", marginBottom: 6 };
-const pageDesc = { color: "#94a3b8", marginBottom: 20 };
-const cards = { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 20 };
-const statCard = { padding: 20, borderRadius: 14, border: "1px solid", background: "rgba(15,23,42,0.6)" };
-const card = { background: "rgba(15,23,42,0.7)", padding: 20, borderRadius: 16, marginTop: 15 };
-const row = { display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid #1e293b" };
-const input = { padding: 10, borderRadius: 10, border: "1px solid #334155", background: "#020617", color: "#fff" };
-const datePicker = input;
-const primaryBtn = { padding: "12px 18px", borderRadius: 10, background: "#2563eb", border: "none", color: "#fff", fontWeight: 600 };
-const linkBtn = { background: "none", border: "none", color: "#38bdf8", cursor: "pointer" };
-const approveBtn = { background: "#22c55e", border: "none", padding: "8px 12px", borderRadius: 8, marginRight: 6 };
-const rejectBtn = { background: "#ef4444", border: "none", padding: "8px 12px", borderRadius: 8 };
-const reviewRow = { display: "flex", justifyContent: "space-between", gap: 20, marginBottom: 15 };
-const filterGrid = { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 15 };
-const table = { width: "100%", borderCollapse: "collapse", marginTop: 10 };
