@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import API from "../services/api";
+import "./StudentDashboard.css";
 
 export default function StudentDashboard() {
   const [activeTab, setActiveTab] = useState("task");

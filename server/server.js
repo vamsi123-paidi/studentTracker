@@ -15,6 +15,8 @@ app.use(cors({
 }));
 app.use(express.json());
 
+app.use("/api/reports", require("./routes/reportRoutes"));
+
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/submissions", require("./routes/submissionRoutes"));
 

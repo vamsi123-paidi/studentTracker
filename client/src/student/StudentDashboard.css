@@ -1,0 +1,272 @@
+/* ================= STUDENT DASHBOARD (ADMIN STYLE) ================= */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg: #05060a;
+  --bg2: #080b14;
+  --panel: rgba(255,255,255,0.05);
+  --border: rgba(255,255,255,0.12);
+  --text: #e5e7eb;
+  --muted: #9ca3af;
+  --accent: #00e5ff;
+  --accent2: #6366f1;
+  --success: #22c55e;
+  --warning: #eab308;
+  --danger: #ef4444;
+}
+
+body {
+  font-family: "Inter", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ===== LAYOUT FIX (IMPORTANT) ===== */
+
+.student-layout {
+  position: relative;
+  display: flex; /* ✅ FIX */
+  height: 100vh;
+  background:
+    radial-gradient(circle at 15% 15%, #0a1122, transparent 40%),
+    radial-gradient(circle at 85% 85%, #060c18, transparent 40%),
+    linear-gradient(180deg, var(--bg), var(--bg2));
+  overflow: hidden;
+}
+
+/* ===== BACKGROUND EFFECTS ===== */
+
+.ai-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,229,255,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,255,0.05) 1px, transparent 1px);
+  background-size: 60px 60px;
+  animation: gridMove 20s linear infinite;
+  opacity: 0.25;
+  z-index: 0;
+}
+
+@keyframes gridMove {
+  from { transform: translateY(0); }
+  to { transform: translateY(60px); }
+}
+
+.particles::before,
+.particles::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(#00e5ff 1px, transparent 1px);
+  background-size: 140px 140px;
+  opacity: 0.12;
+  animation: particlesMove 50s linear infinite;
+}
+
+@keyframes particlesMove {
+  from { transform: translateY(0); }
+  to { transform: translateY(-300px); }
+}
+
+.cursor-glow {
+  position: fixed;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(0,229,255,0.18), transparent 70%);
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  mix-blend-mode: screen;
+}
+
+/* ===== SIDEBAR (LIKE ADMIN) ===== */
+
+.student-sidebar {
+  width: 240px;
+  background: linear-gradient(180deg, rgba(2,6,23,0.95), rgba(2,6,23,1));
+  border-right: 1px solid var(--border);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  z-index: 2;
+}
+
+.student-logo {
+  font-size: 1.4rem;
+  margin-bottom: 20px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ===== NAV ITEMS ===== */
+
+.nav-item {
+  padding: 12px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  margin-bottom: 8px;
+  transition: 0.3s;
+  color: var(--muted);
+}
+
+.nav-item:hover {
+  background: rgba(255,255,255,0.08);
+  color: white;
+  transform: translateX(4px);
+}
+
+.nav-item.active {
+  background: linear-gradient(135deg, rgba(0,229,255,0.2), rgba(99,102,241,0.12));
+  border: 1px solid rgba(0,229,255,0.35);
+  color: white;
+  box-shadow: 0 0 20px rgba(0,229,255,0.25);
+}
+
+.nav-item.logout {
+  color: var(--danger);
+}
+
+/* ===== CONTENT AREA ===== */
+
+.student-content {
+  flex: 1;
+  padding: 30px;
+  overflow-y: auto;
+  z-index: 2;
+  animation: fadeInUp 0.8s ease forwards;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(25px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== CARD ===== */
+
+.card {
+  background: var(--panel);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  padding: 20px;
+  border-radius: 18px;
+  transition: 0.4s;
+  max-width: 600px;
+}
+
+.card:hover {
+  transform: translateY(-6px) scale(1.01);
+  box-shadow: 0 20px 60px rgba(0,229,255,0.18);
+}
+
+.card h2 {
+  margin-bottom: 12px;
+}
+
+/* ===== INPUTS ===== */
+
+.card label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  display: block;
+  margin-top: 10px;
+}
+
+.card input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(2,6,23,0.95);
+  color: white;
+  margin-top: 6px;
+}
+
+/* ===== BUTTON ===== */
+
+.primary-btn {
+  margin-top: 14px;
+  padding: 10px 18px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: black;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.primary-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 30px rgba(0,229,255,0.6);
+}
+
+/* ===== STATUS ===== */
+
+.status-card {
+  background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0));
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.status.approved { color: var(--success); }
+.status.pending { color: var(--warning); }
+.status.rejected { color: var(--danger); }
+
+/* ===== STATS ===== */
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.stat-box {
+  padding: 14px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0));
+  text-align: center;
+  border: 1px solid var(--border);
+}
+
+.stat-box.green { color: var(--success); }
+.stat-box.yellow { color: var(--warning); }
+.stat-box.red { color: var(--danger); }
+
+/* ===== RESPONSIVE ===== */
+
+@media (max-width: 900px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .student-layout {
+    flex-direction: column;
+  }
+
+  .student-sidebar {
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .card {
+    max-width: 100%;
+  }
+}

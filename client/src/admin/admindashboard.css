@@ -1,0 +1,423 @@
+/* ================= FUTURISTIC AI ADMIN DASHBOARD (FULL RESPONSIVE) ================= */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;600&display=swap");
+
+/* ===== RESET ===== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: #05060a;
+  color: #e5e7eb;
+  font-family: "Inter", sans-serif;
+  overflow: hidden;
+}
+
+/* ===== THEME VARIABLES ===== */
+:root {
+  --bg: #05060a;
+  --bg2: #080b14;
+  --panel: rgba(255, 255, 255, 0.05);
+  --glass: rgba(255, 255, 255, 0.08);
+  --border: rgba(255, 255, 255, 0.12);
+  --text: #e5e7eb;
+  --muted: #9ca3af;
+
+  --accent: #00e5ff;
+  --accent2: #6366f1;
+  --accent3: #22c55e;
+  --danger: #ef4444;
+}
+
+/* ===== LAYOUT ===== */
+.admin-layout {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  background:
+    radial-gradient(circle at 15% 15%, #0a1122, transparent 40%),
+    radial-gradient(circle at 85% 85%, #060c18, transparent 40%),
+    linear-gradient(180deg, var(--bg), var(--bg2));
+  overflow: hidden;
+}
+
+/* ===== AI GRID BACKGROUND ===== */
+.ai-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,229,255,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,255,0.05) 1px, transparent 1px);
+  background-size: 60px 60px;
+  animation: gridMove 20s linear infinite;
+  opacity: 0.2;
+  z-index: 0;
+}
+
+@keyframes gridMove {
+  from { transform: translateY(0); }
+  to { transform: translateY(60px); }
+}
+
+/* ===== FLOATING PARTICLES ===== */
+.particles::before,
+.particles::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(#00e5ff 1px, transparent 1px);
+  background-size: 140px 140px;
+  opacity: 0.12;
+  animation: particlesMove 50s linear infinite;
+}
+
+.particles::after {
+  background-size: 220px 220px;
+  animation-duration: 80s;
+  opacity: 0.06;
+}
+
+@keyframes particlesMove {
+  from { transform: translateY(0); }
+  to { transform: translateY(-300px); }
+}
+
+/* ===== CURSOR GLOW ===== */
+.cursor-glow {
+  position: fixed;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(0,229,255,0.18), transparent 70%);
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  mix-blend-mode: screen;
+  transition: transform 0.05s linear;
+}
+
+/* ================= SIDEBAR ================= */
+.sidebar {
+  position: relative;
+  z-index: 2;
+  width: 260px;
+  margin: 14px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--border);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+  transition: all 0.4s ease;
+}
+
+/* LOGO */
+.logo {
+  font-family: "Orbitron", sans-serif;
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  margin-bottom: 22px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* NAV ITEMS */
+.nav-item {
+  padding: 10px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  margin-bottom: 6px;
+  transition: 0.35s;
+  color: var(--muted);
+  position: relative;
+}
+
+.nav-item:hover {
+  color: white;
+  background: rgba(255,255,255,0.08);
+  transform: translateX(4px);
+}
+
+.nav-active {
+  background: linear-gradient(135deg, rgba(0,229,255,0.25), rgba(99,102,241,0.15));
+  border: 1px solid rgba(0,229,255,0.4);
+  color: white;
+  box-shadow: 0 0 20px rgba(0,229,255,0.3);
+}
+
+.nav-danger {
+  color: var(--danger);
+}
+
+/* ================= CONTENT ================= */
+.content {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+  animation: fadeInUp 0.8s ease forwards;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(25px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* HEADINGS */
+h1 {
+  font-size: clamp(1.6rem, 2.2vw, 2.2rem);
+  font-weight: 600;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 12px;
+}
+
+h3 {
+  font-weight: 500;
+  color: var(--accent);
+}
+
+/* ================= CARDS ================= */
+.card {
+  background: var(--panel);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  padding: 20px;
+  border-radius: 18px;
+  margin-top: 14px;
+  transition: 0.35s;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 60px rgba(0,229,255,0.18);
+}
+
+/* ================= STATS GRID ================= */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+
+.stat-card {
+  background: linear-gradient(180deg, rgba(0,229,255,0.1), rgba(255,255,255,0.02));
+  border: 1px solid var(--border);
+  padding: 18px;
+  border-radius: 16px;
+  transition: 0.35s;
+}
+
+.stat-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 0 35px rgba(0,229,255,0.25);
+}
+
+/* ================= INPUTS ================= */
+.input {
+  padding: 11px 13px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,0.5);
+  color: white;
+  transition: 0.3s;
+  width: 100%;
+}
+
+.input::placeholder {
+  color: var(--muted);
+}
+
+.input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0,229,255,0.2);
+  outline: none;
+}
+
+/* ================= BUTTONS ================= */
+button {
+  font-family: "Inter", sans-serif;
+  color: white !important;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-primary {
+  padding: 10px 18px;
+  border-radius: 14px;
+  font-weight: 600;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  transition: 0.3s;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 0 30px rgba(0,229,255,0.6);
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  padding: 9px 14px;
+  border-radius: 14px;
+  color: black !important;
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  padding: 9px 14px;
+  border-radius: 14px;
+}
+
+/* ================= TABLE ================= */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(0,0,0,0.35);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-top: 10px;
+  font-size: 0.95rem;
+}
+
+.table th,
+.table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.table th {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.table tr:hover {
+  background: rgba(0,229,255,0.08);
+}
+
+/* ================= ROWS ================= */
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--border);
+  flex-wrap: wrap;
+}
+
+.review-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+}
+
+/* ================= FILTER GRID ================= */
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+/* ===================================================== */
+/* ================= RESPONSIVE DESIGN ================= */
+/* ===================================================== */
+
+/* LARGE TABLETS */
+@media (max-width: 1200px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* TABLETS */
+@media (max-width: 900px) {
+  .sidebar {
+    width: 220px;
+  }
+
+  .content {
+    padding: 18px;
+  }
+
+  .filter-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* MOBILE DEVICES */
+@media (max-width: 768px) {
+  .admin-layout {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    margin: 0;
+    border-radius: 0;
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 10px;
+  }
+
+  .logo {
+    display: none;
+  }
+
+  .nav-item {
+    white-space: nowrap;
+    font-size: 0.85rem;
+    padding: 8px 12px;
+  }
+
+  .content {
+    padding: 14px;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .table {
+    font-size: 0.85rem;
+  }
+}
+
+/* EXTRA SMALL DEVICES */
+@media (max-width: 480px) {
+  h1 {
+    font-size: 1.4rem;
+  }
+
+  .card {
+    padding: 14px;
+  }
+
+  .btn-primary {
+    width: 100%;
+  }
+
+  .table th,
+  .table td {
+    padding: 8px;
+  }
+}

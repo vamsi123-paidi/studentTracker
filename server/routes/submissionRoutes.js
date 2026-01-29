@@ -14,8 +14,13 @@ const {
   getStudentProgress,
   getLeaderboard,
   getBranchAnalytics,
-  getFilteredStudents 
+  getFilteredStudents ,
+  downloadBranchReport,
+  searchStudentPerformance
+  
 } = require("../controllers/submissionController");
+router.get("/branch-report", protect, adminOnly, downloadBranchReport);
+router.get("/search-performance", protect, adminOnly, searchStudentPerformance);
 
 router.post("/submit", protect, studentOnly, submitTaskByDate);
 router.get("/today", protect, getTodayStatus);
