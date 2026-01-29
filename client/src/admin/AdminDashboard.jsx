@@ -9,6 +9,8 @@ export default function AdminDashboard() {
   const [missedStudents, setMissedStudents] = useState([]);
 
   const [analytics, setAnalytics] = useState(null);
+  const [branchAnalytics, setBranchAnalytics] = useState([]); // ✅ NEW
+
   const [dashboardDate, setDashboardDate] = useState(
     new Date().toISOString().split("T")[0]
   );
@@ -36,7 +38,7 @@ export default function AdminDashboard() {
   /* ================= DATA ================= */
 
   useEffect(() => {
-    API.get("/auth/students").then(res => setStudents(res.data));
+    API.get("/auth/students").then(res => setStudents(res.data || []));
   }, []);
 
   useEffect(() => {
@@ -45,30 +47,42 @@ export default function AdminDashboard() {
         .then(res => setAnalytics(res.data));
 
       API.get(`/submissions/missed?date=${dashboardDate}`)
-        .then(res => setMissedStudents(res.data));
+        .then(res => setMissedStudents(res.data || []));
+
+      // ✅ Branch analytics
+      API.get(`/submissions/branch-analytics?date=${dashboardDate}`)
+        .then(res => setBranchAnalytics(res.data || []));
     }
   }, [activeTab, dashboardDate]);
 
   useEffect(() => {
     if (activeTab === "review") {
       API.get(`/submissions/pending?date=${reviewDate}`)
-        .then(res => setPending(res.data));
+        .then(res => {
+          const safe = (res.data || []).filter(p => p.studentId !== null);
+          setPending(safe);
+        });
     }
   }, [activeTab, reviewDate]);
 
   /* ================= FILTER API ================= */
 
   const fetchFilteredStudents = async () => {
-    const query = new URLSearchParams(filters).toString();
-    const res = await API.get(`/submissions/filter?${query}`);
-    setFilteredStudents(res.data);
+    try {
+      const query = new URLSearchParams(filters).toString();
+      const res = await API.get(`/submissions/filter-students?${query}`);
+      setFilteredStudents(res.data || []);
+    } catch (err) {
+      console.error("Filter Error:", err);
+      alert("Filter failed ❌");
+    }
   };
 
   /* ================= ACTIONS ================= */
 
   const createStudent = async () => {
     await API.post("/auth/register-student", form);
-    alert("Student created");
+    alert("Student created ✅");
     setForm({ name: "", email: "", password: "" });
     setActiveTab("students");
     const res = await API.get("/auth/students");
@@ -79,7 +93,8 @@ export default function AdminDashboard() {
     await API.patch(`/submissions/review/${id}`, { status, remark });
     setRemark("");
     const res = await API.get(`/submissions/pending?date=${reviewDate}`);
-    setPending(res.data);
+    const safe = (res.data || []).filter(p => p.studentId !== null);
+    setPending(safe);
   };
 
   const fetchPerformance = async (id, name) => {
@@ -96,10 +111,11 @@ export default function AdminDashboard() {
       <aside style={sidebar}>
         <h2 style={logo}>Admin Panel</h2>
 
-        <Nav label="Dashboard" active={activeTab==="dashboard"} onClick={()=>setActiveTab("dashboard")} />
-        <Nav label="Create Student" active={activeTab==="create"} onClick={()=>setActiveTab("create")} />
-        <Nav label="Students" active={activeTab==="students"} onClick={()=>setActiveTab("students")} />
-        <Nav label="Review Tasks" active={activeTab==="review"} onClick={()=>setActiveTab("review")} />
+        <Nav label="Dashboard" active={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")} />
+        <Nav label="Create Student" active={activeTab === "create"} onClick={() => setActiveTab("create")} />
+        <Nav label="Students" active={activeTab === "students"} onClick={() => setActiveTab("students")} />
+        <Nav label="Review Tasks" active={activeTab === "review"} onClick={() => setActiveTab("review")} />
+        <Nav label="Filter Students" active={activeTab === "filter"} onClick={() => setActiveTab("filter")} />
 
         <div style={{ marginTop: "auto" }}>
           <Nav label="Logout" danger onClick={() => {
@@ -116,7 +132,6 @@ export default function AdminDashboard() {
         {activeTab === "dashboard" && analytics && (
           <>
             <h1 style={pageTitle}>Admin Overview</h1>
-            <p style={pageDesc}>Track submissions, discipline, and attendance.</p>
 
             <input
               type="date"
@@ -132,78 +147,34 @@ export default function AdminDashboard() {
               <Stat title="Missed" value={analytics.missingCount} red />
             </div>
 
-            {/* ================= FILTER SECTION ================= */}
-            <Section title="🎯 Advanced Filters">
-
-              <div style={filterGrid}>
-                <input
-                  type="date"
-                  value={filters.date}
-                  onChange={e => setFilters({ ...filters, date: e.target.value })}
-                  style={input}
-                />
-
-                <input
-                  placeholder="College"
-                  value={filters.college}
-                  onChange={e => setFilters({ ...filters, college: e.target.value })}
-                  style={input}
-                />
-
-                <input
-                  placeholder="Branch"
-                  value={filters.branch}
-                  onChange={e => setFilters({ ...filters, branch: e.target.value })}
-                  style={input}
-                />
-
-                <input
-                  placeholder="Section"
-                  value={filters.section}
-                  onChange={e => setFilters({ ...filters, section: e.target.value })}
-                  style={input}
-                />
-
-                <select
-                  value={filters.status}
-                  onChange={e => setFilters({ ...filters, status: e.target.value })}
-                  style={input}
-                >
-                  <option value="">All Status</option>
-                  <option value="submitted">Submitted</option>
-                  <option value="missed">Missed</option>
-                  <option value="Approved">Approved</option>
-                  <option value="Rejected">Rejected</option>
-                  <option value="Pending">Pending</option>
-                </select>
-
-                <button style={primaryBtn} onClick={fetchFilteredStudents}>
-                  🔍 Apply Filter
-                </button>
-              </div>
-
+            {/* ✅ BRANCH ANALYTICS */}
+            <Section title="📊 Branch-wise Analytics">
               <Card>
-                {filteredStudents.length === 0 ? (
-                  <Empty text="No students found with selected filters" />
+                {branchAnalytics.length === 0 ? (
+                  <Empty text="No branch data available" />
                 ) : (
                   <table style={table}>
                     <thead>
                       <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>College</th>
                         <th>Branch</th>
-                        <th>Section</th>
+                        <th>Total</th>
+                        <th>Submitted</th>
+                        <th>Missed</th>
+                        <th>Approved</th>
+                        <th>Pending</th>
+                        <th>Rejected</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredStudents.map(s => (
-                        <tr key={s._id}>
-                          <td>{s.name}</td>
-                          <td>{s.email}</td>
-                          <td>{s.college || "-"}</td>
-                          <td>{s.branch || "-"}</td>
-                          <td>{s.section || "-"}</td>
+                      {branchAnalytics.map((b, index) => (
+                        <tr key={index}>
+                          <td>{b.branch}</td>
+                          <td>{b.total}</td>
+                          <td style={{ color: "#22c55e" }}>{b.submitted}</td>
+                          <td style={{ color: "#ef4444" }}>{b.missed}</td>
+                          <td style={{ color: "#16a34a" }}>{b.approved}</td>
+                          <td style={{ color: "#eab308" }}>{b.pending}</td>
+                          <td style={{ color: "#dc2626" }}>{b.rejected}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -212,15 +183,91 @@ export default function AdminDashboard() {
               </Card>
             </Section>
 
-            {/* ================= MISSED STUDENTS ================= */}
+            {/* MISSED STUDENTS */}
             <Section title="❌ Missed Students">
               {missedStudents.length === 0
                 ? <Empty text="No missed submissions 🎉" />
                 : missedStudents.map(s => (
-                  <Row key={s._id} left={s.name} right={s.email} />
+                  <Row key={s._id} left={s.name || "Deleted"} right={s.email || "-"} />
                 ))
               }
             </Section>
+          </>
+        )}
+
+        {/* ================= FILTER TAB ================= */}
+        {activeTab === "filter" && (
+          <>
+            <h1 style={pageTitle}>🎯 Filter Students</h1>
+
+            <Card>
+              <div style={filterGrid}>
+                <input type="date" value={filters.date}
+                  onChange={e => setFilters({ ...filters, date: e.target.value })}
+                  style={input}
+                />
+
+                <input placeholder="College" value={filters.college}
+                  onChange={e => setFilters({ ...filters, college: e.target.value })}
+                  style={input}
+                />
+
+                <input placeholder="Branch" value={filters.branch}
+                  onChange={e => setFilters({ ...filters, branch: e.target.value })}
+                  style={input}
+                />
+
+                <input placeholder="Section" value={filters.section}
+                  onChange={e => setFilters({ ...filters, section: e.target.value })}
+                  style={input}
+                />
+
+                <select value={filters.status}
+                  onChange={e => setFilters({ ...filters, status: e.target.value })}
+                  style={input}
+                >
+                  <option value="">All</option>
+                  <option value="submitted">Submitted</option>
+                  <option value="missed">Missed</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                  <option value="Pending">Pending</option>
+                </select>
+
+                <button style={primaryBtn} onClick={fetchFilteredStudents}>
+                  🔍 Search
+                </button>
+              </div>
+            </Card>
+
+            <Card>
+              {filteredStudents.length === 0 ? (
+                <Empty text="No students found 🚫" />
+              ) : (
+                <table style={table}>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>College</th>
+                      <th>Branch</th>
+                      <th>Section</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredStudents.map(s => (
+                      <tr key={s._id}>
+                        <td>{s.name}</td>
+                        <td>{s.email}</td>
+                        <td>{s.college || "-"}</td>
+                        <td>{s.branch || "-"}</td>
+                        <td>{s.section || "-"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </Card>
           </>
         )}
 
@@ -230,11 +277,11 @@ export default function AdminDashboard() {
             <h1 style={pageTitle}>Create Student</h1>
             <Card>
               <Input placeholder="Name" value={form.name}
-                onChange={e=>setForm({...form,name:e.target.value})} />
+                onChange={e => setForm({ ...form, name: e.target.value })} />
               <Input placeholder="Email" value={form.email}
-                onChange={e=>setForm({...form,email:e.target.value})} />
+                onChange={e => setForm({ ...form, email: e.target.value })} />
               <Input placeholder="Password" value={form.password}
-                onChange={e=>setForm({...form,password:e.target.value})} />
+                onChange={e => setForm({ ...form, password: e.target.value })} />
               <button style={primaryBtn} onClick={createStudent}>
                 Create Student
               </button>
@@ -263,7 +310,7 @@ export default function AdminDashboard() {
 
             {performance && (
               <Card>
-                <h3>📊 {selectedStudent}</h3>
+                <h3>{selectedStudent}</h3>
                 <p>Total Days: {performance.totalDays}</p>
                 <p>Submitted: {performance.submittedDays}</p>
                 <p>Missed: {performance.missedDays}</p>
@@ -286,22 +333,24 @@ export default function AdminDashboard() {
             />
 
             <Card>
+              {pending.length === 0 && <Empty text="No pending submissions" />}
+
               {pending.map(p => (
                 <div key={p._id} style={reviewRow}>
                   <div>
-                    <b>{p.studentId.name}</b>
-                    <p>{p.studentId.email}</p>
-                    <a href={p.linkedinUrl} target="_blank">View Task</a>
+                    <b>{p.studentId?.name || "Deleted Student"}</b>
+                    <p>{p.studentId?.email || "-"}</p>
+                    <a href={p.linkedinUrl} target="_blank" rel="noreferrer">View Task</a>
                   </div>
                   <div>
                     <Input placeholder="Remark" value={remark}
-                      onChange={e=>setRemark(e.target.value)} />
+                      onChange={e => setRemark(e.target.value)} />
                     <button style={approveBtn}
-                      onClick={()=>reviewSubmission(p._id,"Approved")}>
+                      onClick={() => reviewSubmission(p._id, "Approved")}>
                       Approve
                     </button>
                     <button style={rejectBtn}
-                      onClick={()=>reviewSubmission(p._id,"Rejected")}>
+                      onClick={() => reviewSubmission(p._id, "Rejected")}>
                       Reject
                     </button>
                   </div>
@@ -310,6 +359,7 @@ export default function AdminDashboard() {
             </Card>
           </>
         )}
+
       </main>
     </div>
   );
@@ -318,18 +368,15 @@ export default function AdminDashboard() {
 /* ================= COMPONENTS ================= */
 
 const Nav = ({ label, active, onClick, danger }) => (
-  <div
-    onClick={onClick}
+  <div onClick={onClick}
     style={{
       padding: "12px 16px",
       borderRadius: 10,
-      marginBottom: 8,
       cursor: "pointer",
       background: active ? "#1e293b" : "transparent",
       color: danger ? "#f87171" : "#e5e7eb",
       fontWeight: 500
-    }}
-  >
+    }}>
     {label}
   </div>
 );
@@ -361,7 +408,7 @@ const Empty = ({ text }) => <p style={{ textAlign: "center", color: "#94a3b8" }}
 const layout = { display: "flex", height: "100vh", background: "#020617", color: "#f8fafc" };
 const sidebar = { width: 240, borderRight: "1px solid #1e293b", padding: 20, display: "flex", flexDirection: "column" };
 const logo = { marginBottom: 20 };
-const content = { flex: 1, padding: 40, overflowY: "auto" };
+const content = { flex: 1, padding: 30, overflowY: "auto" };
 const pageTitle = { fontSize: "2rem", marginBottom: 6 };
 const pageDesc = { color: "#94a3b8", marginBottom: 20 };
 const cards = { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 20 };

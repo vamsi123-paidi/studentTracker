@@ -281,35 +281,124 @@ exports.getLeaderboard = async (req, res) => {
 };
 
 exports.getFilteredStudents = async (req, res) => {
-  const { date, college, branch, section, status } = req.query;
+  try {
+    const { date, college, branch, section } = req.query;
 
-  let studentQuery = { role: "student" };
+    if (!date) {
+      return res.status(400).json({ message: "Date is required" });
+    }
 
-  if (college) studentQuery.college = college;
-  if (branch) studentQuery.branch = branch;
-  if (section) studentQuery.section = section;
+    // 1️⃣ Get students by filters
+    let studentQuery = { role: "student" };
+    if (college) studentQuery.college = college;
+    if (branch) studentQuery.branch = branch;
+    if (section) studentQuery.section = section;
 
-  const students = await User.find(studentQuery).select("name email college branch section");
+    const students = await User.find(studentQuery)
+      .select("name email college branch section");
 
-  const submissions = await Submission.find(date ? { date } : {}).populate("studentId");
+    // 2️⃣ Get submissions for that date
+    const submissions = await Submission.find({ date }).populate("studentId");
 
-  let result = [];
+    // 3️⃣ Map submissions by studentId
+    const submissionMap = {};
+    submissions.forEach(s => {
+      if (s.studentId) {
+        submissionMap[s.studentId._id.toString()] = s;
+      }
+    });
 
-  if (status === "missed") {
-    const submittedIds = submissions.map(s => s.studentId._id.toString());
-    result = students.filter(s => !submittedIds.includes(s._id.toString()));
+    // 4️⃣ Merge student + submission data
+    const result = students.map(student => {
+      const submission = submissionMap[student._id.toString()];
+
+      return {
+        _id: student._id,
+        name: student.name,
+        email: student.email,
+        college: student.college,
+        branch: student.branch,
+        section: student.section,
+
+        // ✅ task info
+        submitted: !!submission,
+        status: submission ? submission.status : "Not Submitted",
+        linkedinUrl: submission ? submission.linkedinUrl : null
+      };
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error("Filter Error:", err);
+    res.status(500).json({ message: "Filter failed" });
   }
-  else if (status === "submitted") {
-    result = submissions.map(s => s.studentId);
-  }
-  else if (["Approved", "Rejected", "Pending"].includes(status)) {
-    result = submissions.filter(s => s.status === status).map(s => s.studentId);
-  }
-  else {
-    result = students;
-  }
-
-  res.json(result);
 };
+
+exports.getBranchAnalytics = async (req, res) => {
+  try {
+    const { date } = req.query;
+
+    if (!date) {
+      return res.status(400).json({ message: "Date is required" });
+    }
+
+    // Get all students with branch info
+    const students = await User.find({ role: "student" }).select("branch");
+
+    // Group students by branch
+    const branchMap = {};
+    students.forEach(s => {
+      const branch = s.branch || "Unknown";
+      if (!branchMap[branch]) branchMap[branch] = { total: 0 };
+      branchMap[branch].total++;
+    });
+
+    // Get submissions for date
+    const submissions = await Submission.find({ date }).populate("studentId");
+
+    submissions.forEach(sub => {
+      if (!sub.studentId) return;
+
+      const branch = sub.studentId.branch || "Unknown";
+
+      if (!branchMap[branch]) branchMap[branch] = { total: 0 };
+
+      if (!branchMap[branch].submitted) branchMap[branch].submitted = 0;
+      if (!branchMap[branch].approved) branchMap[branch].approved = 0;
+      if (!branchMap[branch].pending) branchMap[branch].pending = 0;
+      if (!branchMap[branch].rejected) branchMap[branch].rejected = 0;
+
+      branchMap[branch].submitted++;
+
+      if (sub.status === "Approved") branchMap[branch].approved++;
+      if (sub.status === "Pending") branchMap[branch].pending++;
+      if (sub.status === "Rejected") branchMap[branch].rejected++;
+    });
+
+    // Convert object → array
+    const result = Object.keys(branchMap).map(branch => {
+      const data = branchMap[branch];
+      return {
+        branch,
+        total: data.total || 0,
+        submitted: data.submitted || 0,
+        missed: (data.total || 0) - (data.submitted || 0),
+        approved: data.approved || 0,
+        pending: data.pending || 0,
+        rejected: data.rejected || 0
+      };
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error("Branch Analytics Error:", err);
+    res.status(500).json({ message: "Failed to fetch branch analytics" });
+  }
+};
+
+
+
+
+
 
 

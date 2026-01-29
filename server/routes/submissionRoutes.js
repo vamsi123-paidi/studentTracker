@@ -13,6 +13,7 @@ const {
   getMyPerformance,
   getStudentProgress,
   getLeaderboard,
+  getBranchAnalytics,
   getFilteredStudents 
 } = require("../controllers/submissionController");
 
@@ -22,7 +23,8 @@ router.get("/history", protect, getStudentHistory);
 router.get("/my-performance", protect, getMyPerformance);
 router.get("/progress", protect, getStudentProgress);
 router.get("/leaderboard", protect, getLeaderboard);
-router.get("/filter", protect, adminOnly, getFilteredStudents);
+router.get("/filter-students", protect, adminOnly, getFilteredStudents);
+router.get("/branch-analytics", protect, adminOnly, getBranchAnalytics);
 
 router.get("/pending", protect, adminOnly, getPendingByDate);
 router.patch("/review/:id", protect, adminOnly, reviewSubmission);
