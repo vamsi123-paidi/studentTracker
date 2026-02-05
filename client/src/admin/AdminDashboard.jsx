@@ -3,7 +3,9 @@ import API from "../services/api";
 import "./admindashboard.css";
 
 export default function AdminDashboard() {
+  const [theme, setTheme] = useState(localStorage.getItem("admin-theme") || "dark");
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const [students, setStudents] = useState([]);
   const [pending, setPending] = useState([]);
@@ -26,6 +28,8 @@ export default function AdminDashboard() {
   const [remark, setRemark] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResult, setSearchResult] = useState(null);
+  const [resetUser, setResetUser] = useState(null);
+  const [newPassword, setNewPassword] = useState("");
 
   const [filters, setFilters] = useState({
     date: new Date().toISOString().split("T")[0],
@@ -37,6 +41,25 @@ export default function AdminDashboard() {
 
   const [filteredStudents, setFilteredStudents] = useState([]);
   const [selectedBranch, setSelectedBranch] = useState("all");
+  const [studentSearch, setStudentSearch] = useState("");
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+
+  /* ================= THEME & UI ================= */
+  useEffect(() => {
+    document.body.className = `${theme}-theme`;
+    localStorage.setItem("admin-theme", theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === "light" ? "dark" : "light");
+  };
+
+  const showToast = (message, type = "success") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast(prev => ({ ...prev, show: false }));
+    }, 3000);
+  };
 
   /* ================= DATA ================= */
 
@@ -76,33 +99,46 @@ export default function AdminDashboard() {
       setFilteredStudents(res.data || []);
     } catch (err) {
       console.error("Filter Error:", err);
-      alert("Filter failed ❌");
+      showToast("Filter failed", "error");
     }
   };
 
   /* ================= ACTIONS ================= */
 
   const createStudent = async () => {
-    await API.post("/auth/register-student", form);
-    alert("Student created ✅");
-    setForm({ name: "", email: "", password: "" });
-    setActiveTab("students");
-    const res = await API.get("/auth/students");
-    setStudents(res.data);
+    try {
+      await API.post("/auth/register-student", form);
+      showToast("Student created successfully", "success");
+      setForm({ name: "", email: "", password: "" });
+      setActiveTab("students");
+      const res = await API.get("/auth/students");
+      setStudents(res.data);
+    } catch (err) {
+      showToast("Failed to create student", "error");
+    }
   };
 
   const reviewSubmission = async (id, status) => {
-    await API.patch(`/submissions/review/${id}`, { status, remark });
-    setRemark("");
-    const res = await API.get(`/submissions/pending?date=${reviewDate}`);
-    const safe = (res.data || []).filter(p => p.studentId !== null);
-    setPending(safe);
+    try {
+      await API.patch(`/submissions/review/${id}`, { status, remark });
+      showToast(`Submission ${status.toLowerCase()}`, "success");
+      setRemark("");
+      const res = await API.get(`/submissions/pending?date=${reviewDate}`);
+      const safe = (res.data || []).filter(p => p.studentId !== null);
+      setPending(safe);
+    } catch (err) {
+      showToast("Failed to review submission", "error");
+    }
   };
 
   const fetchPerformance = async (id, name) => {
-    const res = await API.get(`/submissions/performance/${id}`);
-    setPerformance(res.data);
-    setSelectedStudent(name);
+    try {
+      const res = await API.get(`/submissions/performance/${id}`);
+      setPerformance(res.data);
+      setSelectedStudent(name);
+    } catch (err) {
+      showToast("Failed to fetch performance", "error");
+    }
   };
 
   const downloadExcelReport = async () => {
@@ -122,62 +158,166 @@ export default function AdminDashboard() {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      showToast("Report downloaded successfully", "success");
     } catch (err) {
       console.error("Download Error:", err);
-      alert("Excel download failed ❌");
+      showToast("Excel download failed", "error");
     }
   };
 
   const searchStudent = async () => {
-    if (!searchQuery) return alert("Enter name/email/rollno");
+    if (!searchQuery) {
+      showToast("Enter name/email/rollno", "warning");
+      return;
+    }
 
     try {
       const res = await API.get(`/submissions/search-performance?q=${searchQuery}`);
       setSearchResult(res.data);
+      showToast("Student found", "success");
     } catch (err) {
       console.error(err);
-      alert("Search failed ❌");
+      showToast("Search failed", "error");
     }
   };
 
+  const resetStudentPassword = async () => {
+    if (!newPassword) {
+      showToast("Enter new password", "warning");
+      return;
+    }
+
+    try {
+      await API.patch(`/auth/reset-password/${resetUser._id}`, {
+        password: newPassword
+      });
+
+      showToast("Password updated successfully", "success");
+      setResetUser(null);
+      setNewPassword("");
+    } catch (err) {
+      console.error(err);
+      showToast("Reset failed", "error");
+    }
+  };
+
+  /* ================= CURSOR EFFECT ================= */
   useEffect(() => {
     const glow = document.querySelector(".cursor-glow");
+    if (!glow) return;
 
     const move = (e) => {
       glow.style.left = e.clientX + "px";
       glow.style.top = e.clientY + "px";
     };
 
+    const click = () => {
+      glow.classList.add("active");
+      setTimeout(() => glow.classList.remove("active"), 300);
+    };
+
     window.addEventListener("mousemove", move);
-    return () => window.removeEventListener("mousemove", move);
+    window.addEventListener("click", click);
+    
+    return () => {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("click", click);
+    };
   }, []);
 
   /* ================= UI ================= */
 
   return (
     <div className="admin-layout">
-      {/* futuristic background layers */}
-      <div className="ai-grid"></div>
-      <div className="particles"></div>
+      {/* Enhanced Cursor */}
       <div className="cursor-glow"></div>
 
+      {/* Theme Toggle */}
+      <button 
+        className="theme-toggle"
+        onClick={toggleTheme}
+        data-tooltip={`Switch to ${theme === "light" ? "dark" : "light"} theme`}
+      >
+        {theme === "light" ? "🌙" : "☀️"}
+      </button>
+
+      {/* Mobile Menu Toggle */}
+      <button 
+        className="mobile-menu-toggle"
+        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        data-tooltip="Toggle menu"
+      >
+        {mobileMenuOpen ? "✕" : "☰"}
+      </button>
+
+      {/* Toast Notifications */}
+      {toast.show && (
+        <div className="toast-container">
+          <div className={`toast toast-${toast.type}`}>
+            <span className="toast-icon">
+              {toast.type === "success" ? "✅" :
+               toast.type === "error" ? "❌" :
+               toast.type === "warning" ? "⚠️" : "ℹ️"}
+            </span>
+            <div className="toast-content">
+              <div className="toast-title">
+                {toast.type === "success" ? "Success" :
+                 toast.type === "error" ? "Error" :
+                 toast.type === "warning" ? "Warning" : "Info"}
+              </div>
+              <div className="toast-message">{toast.message}</div>
+            </div>
+            <button 
+              className="toast-close"
+              onClick={() => setToast(prev => ({ ...prev, show: false }))}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* SIDEBAR */}
-      <aside className="sidebar">
-        <h2 className="logo">Admin Panel</h2>
+      <aside className={`sidebar ${mobileMenuOpen ? "active" : ""}`}>
+        <div className="sidebar-content">
+          <h2 className="logo">Admin<span className="text-gradient">Panel</span></h2>
 
-        <Nav label="Dashboard" active={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")} />
-        <Nav label="Create Student" active={activeTab === "create"} onClick={() => setActiveTab("create")} />
-        <Nav label="Students" active={activeTab === "students"} onClick={() => setActiveTab("students")} />
-        <Nav label="Review Tasks" active={activeTab === "review"} onClick={() => setActiveTab("review")} />
-        <Nav label="Filter Students" active={activeTab === "filter"} onClick={() => setActiveTab("filter")} />
-        <Nav label="Search Student" active={activeTab === "search"} onClick={() => setActiveTab("search")} />
-
-        <div style={{ marginTop: "auto" }}>
-          <Nav label="Logout" danger onClick={() => {
-            localStorage.clear();
-            window.location.href = "/";
+          <Nav label="📊 Dashboard" active={activeTab === "dashboard"} onClick={() => {
+            setActiveTab("dashboard");
+            setMobileMenuOpen(false);
           }} />
+          
+          <Nav label="👨‍🎓 Create Student" active={activeTab === "create"} onClick={() => {
+            setActiveTab("create");
+            setMobileMenuOpen(false);
+          }} />
+          
+          <Nav label="👥 Students" active={activeTab === "students"} onClick={() => {
+            setActiveTab("students");
+            setMobileMenuOpen(false);
+          }} />
+          
+          <Nav label="📝 Review Tasks" active={activeTab === "review"} onClick={() => {
+            setActiveTab("review");
+            setMobileMenuOpen(false);
+          }} />
+          
+          <Nav label="🔍 Filter Students" active={activeTab === "filter"} onClick={() => {
+            setActiveTab("filter");
+            setMobileMenuOpen(false);
+          }} />
+          
+          <Nav label="🔎 Search Student" active={activeTab === "search"} onClick={() => {
+            setActiveTab("search");
+            setMobileMenuOpen(false);
+          }} />
+
+          <div className="sidebar-footer">
+            <Nav label="🚪 Logout" danger onClick={() => {
+              localStorage.clear();
+              window.location.href = "/";
+            }} />
+          </div>
         </div>
       </aside>
 
@@ -187,48 +327,73 @@ export default function AdminDashboard() {
         {/* DASHBOARD */}
         {activeTab === "dashboard" && analytics && (
           <>
-            <h1>Admin Overview</h1>
-
-            <input
-              type="date"
-              value={dashboardDate}
-              onChange={e => setDashboardDate(e.target.value)}
-              className="input"
-              style={{ maxWidth: 200, marginBottom: 10 }}
-            />
-
-            <div className="stats-grid">
-              <Stat title="Total Students" value={analytics.totalStudents} />
-              <Stat title="Submitted" value={analytics.submittedCount} />
-              <Stat title="Pending" value={analytics.pendingCount} />
-              <Stat title="Missed" value={analytics.missingCount} />
+            <div className="page-header">
+              <h1>Admin Overview</h1>
+              <p>Monitor student submissions and performance analytics</p>
             </div>
 
-            <Section title="📊 Branch-wise Analytics">
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
-                {["all", "CSE-A", "CSE-C", "CSD", "CSM", "AIML"].map(b => (
-                  <button
-                    key={b}
-                    onClick={() => setSelectedBranch(b)}
-                    className="btn-primary"
-                    style={{
-                      background: selectedBranch === b ? "#2563eb" : "#020617",
-                      border: "1px solid #1e293b"
-                    }}
-                  >
-                    {b.toUpperCase()}
-                  </button>
-                ))}
+            <div className="filter-bar">
+              <input
+                type="date"
+                value={dashboardDate}
+                onChange={e => setDashboardDate(e.target.value)}
+                className="input"
+              />
+            </div>
+
+            <div className="stats-grid">
+              <Stat 
+                title="Total Students" 
+                value={analytics.totalStudents} 
+                icon="👥"
+              />
+              <Stat 
+                title="Submitted" 
+                value={analytics.submittedCount} 
+                icon="📤"
+              />
+              <Stat 
+                title="Pending" 
+                value={analytics.pendingCount} 
+                icon="⏳"
+              />
+              <Stat 
+                title="Missed" 
+                value={analytics.missingCount} 
+                icon="❌"
+              />
+            </div>
+
+            <Card>
+              <div className="card-header">
+                <h3 className="card-title">📊 Branch-wise Analytics</h3>
+                <div className="card-actions">
+                  <div className="branch-buttons">
+                    {["all", "CSE-A", "CSE-C", "CSD", "CSM", "AIML"].map(b => (
+                      <button
+                        key={b}
+                        onClick={() => setSelectedBranch(b)}
+                        className={`branch-button ${selectedBranch === b ? "active" : ""}`}
+                      >
+                        {b.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
-              <button className="btn-primary" onClick={downloadExcelReport}>
+              <button className="btn-primary download-btn" onClick={downloadExcelReport}>
                 📥 Download Branch Report
               </button>
 
-              <Card>
-                {branchAnalytics.length === 0 ? (
-                  <Empty text="No branch data available" />
-                ) : (
+              {branchAnalytics.length === 0 ? (
+                <Empty 
+                  icon="📊" 
+                  title="No Branch Data" 
+                  text="No branch analytics available for the selected date"
+                />
+              ) : (
+                <div className="table-container">
                   <table className="table">
                     <thead>
                       <tr>
@@ -244,93 +409,134 @@ export default function AdminDashboard() {
                     <tbody>
                       {branchAnalytics.map((b, index) => (
                         <tr key={index}>
-                          <td>{b.branch}</td>
-                          <td>{b.total}</td>
+                          <td><span className="badge badge-primary">{b.branch}</span></td>
+                          <td><strong>{b.total}</strong></td>
                           <td>{b.submitted}</td>
-                          <td>{b.missed}</td>
-                          <td>{b.approved}</td>
+                          <td><span className="trend-down">{b.missed}</span></td>
+                          <td><span className="trend-up">{b.approved}</span></td>
                           <td>{b.pending}</td>
                           <td>{b.rejected}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                )}
-              </Card>
-            </Section>
+                </div>
+              )}
+            </Card>
 
-            <Section title="❌ Missed Students">
-              {missedStudents.length === 0
-                ? <Empty text="No missed submissions 🎉" />
-                : missedStudents.map(s => (
-                  <Row key={s._id} left={s.name || "Deleted"} right={s.email || "-"} />
-                ))
-              }
-            </Section>
+            <Card>
+              <div className="card-header">
+                <h3 className="card-title">❌ Missed Students</h3>
+              </div>
+              {missedStudents.length === 0 ? (
+                <Empty 
+                  icon="🎉" 
+                  title="All Good!" 
+                  text="No missed submissions for the selected date"
+                />
+              ) : (
+                <div className="missed-list">
+                  {missedStudents.map(s => (
+                    <Row key={s._id} left={s.name || "Deleted Student"} right={s.email || "-"} />
+                  ))}
+                </div>
+              )}
+            </Card>
           </>
         )}
 
         {/* FILTER */}
         {activeTab === "filter" && (
           <>
-            <h1>🎯 Filter Students</h1>
+            <div className="page-header">
+              <h1>🎯 Filter Students</h1>
+              <p>Filter students by various criteria and status</p>
+            </div>
 
             <Card>
               <div className="filter-grid">
-                <input type="date" value={filters.date}
-                  onChange={e => setFilters({ ...filters, date: e.target.value })}
-                  className="input"
-                />
+                <div className="input-group">
+                  <label className="input-label">Date</label>
+                  <input 
+                    type="date" 
+                    value={filters.date}
+                    onChange={e => setFilters({ ...filters, date: e.target.value })}
+                    className="input"
+                  />
+                </div>
 
-                <input placeholder="Branch" value={filters.branch}
-                  onChange={e => setFilters({ ...filters, branch: e.target.value })}
-                  className="input"
-                />
+                <div className="input-group">
+                  <label className="input-label">Branch</label>
+                  <input 
+                    placeholder="Enter branch"
+                    value={filters.branch}
+                    onChange={e => setFilters({ ...filters, branch: e.target.value })}
+                    className="input"
+                  />
+                </div>
 
-                <select value={filters.status}
-                  onChange={e => setFilters({ ...filters, status: e.target.value })}
-                  className="input"
-                >
-                  <option value="">All</option>
-                  <option value="submitted">Submitted</option>
-                  <option value="missed">Missed</option>
-                  <option value="Approved">Approved</option>
-                  <option value="Rejected">Rejected</option>
-                  <option value="Pending">Pending</option>
-                </select>
+                <div className="input-group">
+                  <label className="input-label">Status</label>
+                  <select 
+                    value={filters.status}
+                    onChange={e => setFilters({ ...filters, status: e.target.value })}
+                    className="input"
+                  >
+                    <option value="">All Status</option>
+                    <option value="submitted">Submitted</option>
+                    <option value="missed">Missed</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Rejected">Rejected</option>
+                    <option value="Pending">Pending</option>
+                  </select>
+                </div>
 
-                <button className="btn-primary" onClick={fetchFilteredStudents}>
-                  🔍 Search
-                </button>
+                <div className="input-group">
+                  <label className="input-label">&nbsp;</label>
+                  <button className="btn-primary filter-btn" onClick={fetchFilteredStudents}>
+                    🔍 Search
+                  </button>
+                </div>
               </div>
             </Card>
 
             <Card>
+              <div className="card-header">
+                <h3 className="card-title">Filter Results</h3>
+                <span className="badge badge-primary">{filteredStudents.length} students</span>
+              </div>
+              
               {filteredStudents.length === 0 ? (
-                <Empty text="No students found 🚫" />
+                <Empty 
+                  icon="🚫" 
+                  title="No Students Found" 
+                  text="Try adjusting your filter criteria"
+                />
               ) : (
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Email</th>
-                      <th>College</th>
-                      <th>Branch</th>
-                      <th>Section</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredStudents.map(s => (
-                      <tr key={s._id}>
-                        <td>{s.name}</td>
-                        <td>{s.email}</td>
-                        <td>{s.college || "-"}</td>
-                        <td>{s.branch || "-"}</td>
-                        <td>{s.section || "-"}</td>
+                <div className="table-container">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>College</th>
+                        <th>Branch</th>
+                        <th>Section</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {filteredStudents.map(s => (
+                        <tr key={s._id} onClick={() => fetchPerformance(s._id, s.name)}>
+                          <td><strong>{s.name}</strong></td>
+                          <td>{s.email}</td>
+                          <td>{s.college || "-"}</td>
+                          <td><span className="badge badge-success">{s.branch || "-"}</span></td>
+                          <td>{s.section || "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </Card>
           </>
@@ -339,15 +545,47 @@ export default function AdminDashboard() {
         {/* CREATE STUDENT */}
         {activeTab === "create" && (
           <>
-            <h1>Create Student</h1>
+            <div className="page-header">
+              <h1>Create Student</h1>
+              <p>Add new students to the system</p>
+            </div>
+            
             <Card>
-              <Input placeholder="Name" value={form.name}
-                onChange={e => setForm({ ...form, name: e.target.value })} />
-              <Input placeholder="Email" value={form.email}
-                onChange={e => setForm({ ...form, email: e.target.value })} />
-              <Input placeholder="Password" value={form.password}
-                onChange={e => setForm({ ...form, password: e.target.value })} />
-              <button className="btn-primary" onClick={createStudent}>
+              <div className="card-header">
+                <h3 className="card-title">Student Information</h3>
+              </div>
+              
+              <div className="form-grid">
+                <div className="input-group">
+                  <label className="input-label">Full Name</label>
+                  <Input 
+                    placeholder="Enter student name"
+                    value={form.name}
+                    onChange={e => setForm({ ...form, name: e.target.value })} 
+                  />
+                </div>
+                
+                <div className="input-group">
+                  <label className="input-label">Email Address</label>
+                  <Input 
+                    placeholder="Enter student email"
+                    value={form.email}
+                    onChange={e => setForm({ ...form, email: e.target.value })} 
+                  />
+                </div>
+                
+                <div className="input-group">
+                  <label className="input-label">Password</label>
+                  <Input 
+                    type="password"
+                    placeholder="Enter password"
+                    value={form.password}
+                    onChange={e => setForm({ ...form, password: e.target.value })} 
+                  />
+                </div>
+              </div>
+              
+              <button className="btn-primary create-btn" onClick={createStudent}>
                 Create Student
               </button>
             </Card>
@@ -357,23 +595,152 @@ export default function AdminDashboard() {
         {/* STUDENTS */}
         {activeTab === "students" && (
           <>
-            <h1>Students</h1>
-            <Card>
-              {students.map(s => (
-                <Row
-                  key={s._id}
-                  left={`${s.name} (${s.email})`}
+            <div className="page-header">
+              <h1>Students</h1>
+              <p>Manage all registered students</p>
+            </div>
+
+            <div className="search-bar">
+              <div className="input-group">
+                <input
+                  placeholder="Search student by name or email..."
+                  value={studentSearch}
+                  onChange={e => setStudentSearch(e.target.value)}
+                  className="input"
                 />
-              ))}
+                <span className="input-icon">🔍</span>
+              </div>
+            </div>
+
+            <Card>
+              <div className="card-header">
+                <h3 className="card-title">All Students</h3>
+                <span className="badge badge-primary">{students.length} total</span>
+              </div>
+
+              <div className="students-list">
+                {students.filter(s =>
+                  s.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
+                  s.email.toLowerCase().includes(studentSearch.toLowerCase())
+                ).map(s => (
+                  <div key={s._id} className="student-row">
+                    <div className="student-info">
+                      <div className="student-avatar">
+                        {s.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <h4>{s.name}</h4>
+                        <p>{s.email}</p>
+                      </div>
+                    </div>
+                    <div className="student-actions">
+                      <button
+                        className="btn-outline view-btn"
+                        onClick={() => fetchPerformance(s._id, s.name)}
+                        data-tooltip="View Performance"
+                      >
+                        📊
+                      </button>
+                      <button
+                        className="btn-danger reset-btn"
+                        onClick={() => setResetUser(s)}
+                        data-tooltip="Reset Password"
+                      >
+                        🔄 Reset
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </Card>
+
+            {resetUser && (
+              <div className="modal-backdrop">
+                <div className="modal-box">
+                  <div className="modal-header">
+                    <h3 className="modal-title">Reset Password</h3>
+                    <button 
+                      className="modal-close"
+                      onClick={() => setResetUser(null)}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  
+                  <div className="modal-content">
+                    <div className="user-info">
+                      <div className="user-avatar">
+                        {resetUser.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <h4>{resetUser.name}</h4>
+                        <p>{resetUser.email}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="input-group">
+                      <label className="input-label">New Password</label>
+                      <input
+                        type="password"
+                        placeholder="Enter new password"
+                        value={newPassword}
+                        onChange={e => setNewPassword(e.target.value)}
+                        className="input"
+                      />
+                    </div>
+                    
+                    <div className="modal-actions">
+                      <button className="btn-success" onClick={resetStudentPassword}>
+                        Update Password
+                      </button>
+                      <button className="btn-outline" onClick={() => setResetUser(null)}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {performance && (
               <Card>
-                <h3>{selectedStudent}</h3>
-                <p>Total Days: {performance.totalDays}</p>
-                <p>Submitted: {performance.submittedDays}</p>
-                <p>Missed: {performance.missedDays}</p>
-                <p>Consistency: {performance.consistency}</p>
+                <div className="card-header">
+                  <h3 className="card-title">{selectedStudent}'s Performance</h3>
+                </div>
+                
+                <div className="performance-grid">
+                  <div className="performance-stat">
+                    <div className="stat-icon">📅</div>
+                    <div>
+                      <h4>{performance.totalDays}</h4>
+                      <p>Total Days</p>
+                    </div>
+                  </div>
+                  
+                  <div className="performance-stat">
+                    <div className="stat-icon">✅</div>
+                    <div>
+                      <h4>{performance.submittedDays}</h4>
+                      <p>Submitted</p>
+                    </div>
+                  </div>
+                  
+                  <div className="performance-stat">
+                    <div className="stat-icon">❌</div>
+                    <div>
+                      <h4>{performance.missedDays}</h4>
+                      <p>Missed</p>
+                    </div>
+                  </div>
+                  
+                  <div className="performance-stat">
+                    <div className="stat-icon">📈</div>
+                    <div>
+                      <h4>{performance.consistency}%</h4>
+                      <p>Consistency</p>
+                    </div>
+                  </div>
+                </div>
               </Card>
             )}
           </>
@@ -382,40 +749,87 @@ export default function AdminDashboard() {
         {/* REVIEW */}
         {activeTab === "review" && (
           <>
-            <h1>Review Submissions</h1>
+            <div className="page-header">
+              <h1>Review Submissions</h1>
+              <p>Review and approve pending student submissions</p>
+            </div>
 
-            <input
-              type="date"
-              value={reviewDate}
-              onChange={e => setReviewDate(e.target.value)}
-              className="input"
-              style={{ maxWidth: 200 }}
-            />
+            <div className="filter-bar">
+              <div className="input-group">
+                <input
+                  type="date"
+                  value={reviewDate}
+                  onChange={e => setReviewDate(e.target.value)}
+                  className="input"
+                />
+              </div>
+            </div>
 
             <Card>
-              {pending.length === 0 && <Empty text="No pending submissions" />}
+              <div className="card-header">
+                <h3 className="card-title">Pending Reviews</h3>
+                <span className="badge badge-warning">{pending.length} pending</span>
+              </div>
 
-              {pending.map(p => (
-                <div key={p._id} className="review-row">
-                  <div>
-                    <b>{p.studentId?.name || "Deleted Student"}</b>
-                    <p>{p.studentId?.email || "-"}</p>
-                    <a href={p.linkedinUrl} target="_blank" rel="noreferrer">View Task</a>
-                  </div>
-                  <div>
-                    <Input placeholder="Remark" value={remark}
-                      onChange={e => setRemark(e.target.value)} />
-                    <button className="btn-success"
-                      onClick={() => reviewSubmission(p._id, "Approved")}>
-                      Approve
-                    </button>
-                    <button className="btn-danger"
-                      onClick={() => reviewSubmission(p._id, "Rejected")}>
-                      Reject
-                    </button>
-                  </div>
+              {pending.length === 0 ? (
+                <Empty 
+                  icon="📝" 
+                  title="No Pending Submissions" 
+                  text="All submissions have been reviewed for the selected date"
+                />
+              ) : (
+                <div className="review-list">
+                  {pending.map(p => (
+                    <div key={p._id} className="review-card">
+                      <div className="review-info">
+                        <div className="student-avatar">
+                          {p.studentId?.name?.charAt(0).toUpperCase() || "D"}
+                        </div>
+                        <div>
+                          <h4>{p.studentId?.name || "Deleted Student"}</h4>
+                          <p>{p.studentId?.email || "-"}</p>
+                          <a 
+                            href={p.linkedinUrl} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="view-link"
+                          >
+                            🔗 View Task
+                          </a>
+                        </div>
+                      </div>
+                      
+                      <div className="review-actions">
+                        <div className="input-group">
+                          <input
+                            placeholder="Add remark..."
+                            value={remark}
+                            onChange={e => setRemark(e.target.value)}
+                            className="input"
+                          />
+                        </div>
+                        
+                        <div className="action-buttons">
+                          <button 
+                            className="btn-success approve-btn"
+                            onClick={() => reviewSubmission(p._id, "Approved")}
+                            data-tooltip="Approve Submission"
+                          >
+                            ✅ Approve
+                          </button>
+                          <button 
+                            className="btn-danger reject-btn"
+                            onClick={() => reviewSubmission(p._id, "Rejected")}
+                            data-tooltip="Reject Submission"
+                          >
+                            ❌ Reject
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </Card>
           </>
         )}
@@ -423,35 +837,106 @@ export default function AdminDashboard() {
         {/* SEARCH */}
         {activeTab === "search" && (
           <>
-            <h1>🔍 Search Student Performance</h1>
-
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <input
-                placeholder="Search by Name / Email / Roll No"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="input"
-              />
-              <button className="btn-primary" onClick={searchStudent}>
-                Search
-              </button>
+            <div className="page-header">
+              <h1>🔍 Search Student Performance</h1>
+              <p>Search and view detailed student performance metrics</p>
             </div>
 
-            {!searchResult && <Empty text="No student searched yet" />}
+            <Card>
+              <div className="card-header">
+                <h3 className="card-title">Student Search</h3>
+              </div>
+              
+              <div className="search-container">
+                <div className="input-group">
+                  <input
+                    placeholder="Search by Name / Email / Roll No"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="input"
+                  />
+                  <span className="input-icon">🔍</span>
+                </div>
+                
+                <button className="btn-primary search-btn" onClick={searchStudent}>
+                  Search Student
+                </button>
+              </div>
+            </Card>
 
-            {searchResult && (
+            {!searchResult ? (
+              <Empty 
+                icon="👤" 
+                title="Search for a Student" 
+                text="Enter student details to view their performance metrics"
+              />
+            ) : (
               <Card>
-                <h3>👤 Student Details</h3>
-                <p><b>Name:</b> {searchResult.student.name}</p>
-                <p><b>Email:</b> {searchResult.student.email}</p>
-                <p><b>Roll No:</b> {searchResult.student.rollNo || "-"}</p>
-                <p><b>Branch:</b> {searchResult.student.branch || "-"}</p>
-
-                <h3>📊 Performance</h3>
-                <p>Total Days: {searchResult.performance.totalDays}</p>
-                <p>Approved: {searchResult.performance.approved}</p>
-                <p>Pending: {searchResult.performance.pending}</p>
-                <p>Rejected: {searchResult.performance.rejected}</p>
+                <div className="card-header">
+                  <h3 className="card-title">👤 Student Details</h3>
+                  <span className="badge badge-success">Found</span>
+                </div>
+                
+                <div className="student-profile">
+                  <div className="profile-header">
+                    <div className="profile-avatar">
+                      {searchResult.student.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <h4>{searchResult.student.name}</h4>
+                      <p>{searchResult.student.email}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="profile-details">
+                    <div className="detail-item">
+                      <span className="detail-label">Roll No:</span>
+                      <span className="detail-value">{searchResult.student.rollNo || "-"}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="detail-label">Branch:</span>
+                      <span className="detail-value badge badge-primary">{searchResult.student.branch || "-"}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="performance-section">
+                  <h4 className="section-title">📊 Performance Metrics</h4>
+                  
+                  <div className="metrics-grid">
+                    <div className="metric-card">
+                      <div className="metric-icon">📅</div>
+                      <div className="metric-content">
+                        <h5>{searchResult.performance.totalDays}</h5>
+                        <p>Total Days</p>
+                      </div>
+                    </div>
+                    
+                    <div className="metric-card">
+                      <div className="metric-icon">✅</div>
+                      <div className="metric-content">
+                        <h5>{searchResult.performance.approved}</h5>
+                        <p>Approved</p>
+                      </div>
+                    </div>
+                    
+                    <div className="metric-card">
+                      <div className="metric-icon">⏳</div>
+                      <div className="metric-content">
+                        <h5>{searchResult.performance.pending}</h5>
+                        <p>Pending</p>
+                      </div>
+                    </div>
+                    
+                    <div className="metric-card">
+                      <div className="metric-icon">❌</div>
+                      <div className="metric-content">
+                        <h5>{searchResult.performance.rejected}</h5>
+                        <p>Rejected</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </Card>
             )}
           </>
@@ -462,32 +947,59 @@ export default function AdminDashboard() {
   );
 }
 
-/* ================= COMPONENTS ================= */
+/* ================= ENHANCED COMPONENTS ================= */
 
 const Nav = ({ label, active, onClick, danger }) => (
   <div
     onClick={onClick}
     className={`nav-item ${active ? "nav-active" : ""} ${danger ? "nav-danger" : ""}`}
+    data-tooltip={label.replace(/[^\w\s]/gi, '')}
   >
-    {label}
+    <span className="nav-label">{label}</span>
+    {active && <span className="nav-indicator"></span>}
   </div>
 );
 
-const Stat = ({ title, value }) => (
-  <div className="stat-card">
-    <p>{title}</p>
-    <h2>{value}</h2>
+const Stat = ({ title, value, icon }) => (
+  <div className="stat-card hover-lift">
+    <div className="stat-card-icon">{icon}</div>
+    <div className="stat-card-content">
+      <h3>{value}</h3>
+      <p>{title}</p>
+    </div>
   </div>
 );
 
 const Section = ({ title, children }) => (
-  <div style={{ marginTop: 30 }}>
-    <h3>{title}</h3>
+  <div className="section">
+    <h3 className="section-title">{title}</h3>
     {children}
   </div>
 );
 
-const Card = ({ children }) => <div className="card">{children}</div>;
-const Row = ({ left, right }) => <div className="row"><span>{left}</span><span>{right}</span></div>;
-const Input = props => <input {...props} className="input" />;
-const Empty = ({ text }) => <p style={{ textAlign: "center", color: "#94a3b8" }}>{text}</p>;
+const Card = ({ children }) => (
+  <div className="card fade-in">
+    {children}
+  </div>
+);
+
+const Row = ({ left, right }) => (
+  <div className="row">
+    <span className="row-left">{left}</span>
+    <span className="row-right">{right}</span>
+  </div>
+);
+
+const Input = (props) => (
+  <div className="input-wrapper">
+    <input {...props} className="input" />
+  </div>
+);
+
+const Empty = ({ icon = "📊", title, text }) => (
+  <div className="empty-state">
+    <div className="empty-icon">{icon}</div>
+    <h4 className="empty-title">{title}</h4>
+    <p className="empty-description">{text}</p>
+  </div>
+);
