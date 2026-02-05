@@ -166,3 +166,28 @@ exports.changePassword = async (req, res) => {
 };
 
 
+/**
+ * ADMIN → RESET STUDENT PASSWORD
+ */
+exports.resetStudentPassword = async (req, res) => {
+  try {
+    const { password } = req.body;
+    const { id } = req.params;
+
+    if (!password) {
+      return res.status(400).json({ message: "Password required" });
+    }
+
+    const hashed = await bcrypt.hash(password, 10);
+
+    await User.findByIdAndUpdate(id, {
+      password: hashed
+    });
+
+    res.json({ message: "Password reset successfully ✅" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Reset failed" });
+  }
+};
