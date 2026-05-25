@@ -30,6 +30,11 @@ export default function StudentDashboard() {
 
   /* ================= LEADERBOARD ================= */
   const [leaderboard, setLeaderboard] = useState([]);
+  const branchesByCollege = {
+    "Vigan Institute of Technology": ["CSE-A", "CSE-C", "CSD", "CSM", "AIML"],
+    "SR University": ["CSE", "ECE", "EEE", "MECH", "CIVIL"],
+    "BVC College of Engineering and Technology": ["IT", "AIDS", "AIML", "CSE", "ECE"],
+  };
 
   /* ================= FETCH DATA ================= */
 
@@ -169,7 +174,7 @@ export default function StudentDashboard() {
           style={{ ...navBtn(false), marginTop: 20, color: "#f87171" }}
           onClick={() => {
             localStorage.clear();
-            window.location.href = "/";
+            window.location.replace("/");
           }}
         >
           🚪 Logout
@@ -233,20 +238,27 @@ export default function StudentDashboard() {
 
             <input placeholder="Full Name" value={profile.name} onChange={e => setProfile({ ...profile, name: e.target.value })} style={input} />
             <input placeholder="Roll Number" value={profile.rollNo} onChange={e => setProfile({ ...profile, rollNo: e.target.value })} style={input} />
-            <input placeholder="College" value={profile.college} onChange={e => setProfile({ ...profile, college: e.target.value })} style={input} />
+            <input
+              value={profile.college}
+              style={{
+                ...input,
+                background: "#0f172a",
+                opacity: 0.7,
+                cursor: "not-allowed"
+              }}
+              disabled
+            />
             <label style={label}>Branch</label>
-            <select
+            <input
               value={profile.branch}
-              onChange={e => setProfile({ ...profile, branch: e.target.value })}
-              style={input}
-            >
-              <option value="">Select Branch</option>
-              <option value="CSE-A">CSE-A</option>
-              <option value="CSE-C">CSE-C</option>
-              <option value="AIML">AIML</option>
-              <option value="CSM">CSM</option>
-              <option value="CSD">CSD</option>
-            </select>
+              style={{
+                ...input,
+                background: "#0f172a",
+                opacity: 0.7,
+                cursor: "not-allowed"
+              }}
+              disabled
+            />
 
             <input placeholder="Section" value={profile.section} onChange={e => setProfile({ ...profile, section: e.target.value })} style={input} />
 
