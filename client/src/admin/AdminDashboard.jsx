@@ -21,8 +21,15 @@ export default function AdminDashboard() {
   const [performance, setPerformance] = useState(null);
   const [selectedStudent, setSelectedStudent] = useState("");
 
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
-  const [reviewDate, setReviewDate] = useState(
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    college: "",
+    branch: "",
+    section: "",
+    rollNo: ""
+  }); const [reviewDate, setReviewDate] = useState(
     new Date().toISOString().split("T")[0]
   );
   const [remark, setRemark] = useState("");
@@ -30,7 +37,7 @@ export default function AdminDashboard() {
   const [searchResult, setSearchResult] = useState(null);
   const [resetUser, setResetUser] = useState(null);
   const [newPassword, setNewPassword] = useState("");
-
+  const [selectedCollege, setSelectedCollege] = useState("All Colleges");
   const [filters, setFilters] = useState({
     date: new Date().toISOString().split("T")[0],
     college: "",
@@ -43,7 +50,18 @@ export default function AdminDashboard() {
   const [selectedBranch, setSelectedBranch] = useState("all");
   const [studentSearch, setStudentSearch] = useState("");
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  const colleges = [
+    "All Colleges",
+    "Vigan Institute of Technology",
+    "SR University",
+    "BVC College of Engineering and Technology",
+  ];
 
+  const branchesByCollege = {
+    "Vigan Institute of Technology": ["CSE-A", "CSE-C", "CSD", "CSM", "AIML"],
+    "SR University": ["CSE", "ECE", "EEE", "MECH", "CIVIL"],
+    "BVC College of Engineering and Technology": ["IT", "AIDS", "AIML", "CSE", "ECE"],
+  };
   /* ================= THEME & UI ================= */
   useEffect(() => {
     document.body.className = `${theme}-theme`;
@@ -62,20 +80,29 @@ export default function AdminDashboard() {
   };
 
   /* ================= DATA ================= */
-
   useEffect(() => {
-    API.get("/auth/students").then(res => setStudents(res.data || []));
-  }, []);
+
+    let url = "/auth/students";
+
+    if (selectedCollege !== "All Colleges") {
+      url += `?college=${selectedCollege}`;
+    }
+
+    API.get(url)
+      .then(res => setStudents(res.data || []));
+
+  }, [selectedCollege]);
 
   useEffect(() => {
     if (activeTab === "dashboard") {
-      API.get(`/submissions/analytics?date=${dashboardDate}`)
-        .then(res => setAnalytics(res.data));
+      API.get(
+        `/submissions/analytics?date=${dashboardDate}&college=${selectedCollege}`
+      ).then(res => setAnalytics(res.data));
 
-      API.get(`/submissions/missed?date=${dashboardDate}`)
+      API.get(`/submissions/missed?date=${dashboardDate}&college=${selectedCollege}`)
         .then(res => setMissedStudents(res.data || []));
 
-      API.get(`/submissions/branch-analytics?date=${dashboardDate}`)
+      API.get(`/submissions/branch-analytics?date=${dashboardDate}&college=${selectedCollege}&branch=${selectedBranch}`)
         .then(res => setBranchAnalytics(res.data || []));
     }
   }, [activeTab, dashboardDate]);
@@ -218,7 +245,7 @@ export default function AdminDashboard() {
 
     window.addEventListener("mousemove", move);
     window.addEventListener("click", click);
-    
+
     return () => {
       window.removeEventListener("mousemove", move);
       window.removeEventListener("click", click);
@@ -233,7 +260,7 @@ export default function AdminDashboard() {
       <div className="cursor-glow"></div>
 
       {/* Theme Toggle */}
-      <button 
+      <button
         className="theme-toggle"
         onClick={toggleTheme}
         data-tooltip={`Switch to ${theme === "light" ? "dark" : "light"} theme`}
@@ -242,7 +269,7 @@ export default function AdminDashboard() {
       </button>
 
       {/* Mobile Menu Toggle */}
-      <button 
+      <button
         className="mobile-menu-toggle"
         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
         data-tooltip="Toggle menu"
@@ -256,18 +283,18 @@ export default function AdminDashboard() {
           <div className={`toast toast-${toast.type}`}>
             <span className="toast-icon">
               {toast.type === "success" ? "✅" :
-               toast.type === "error" ? "❌" :
-               toast.type === "warning" ? "⚠️" : "ℹ️"}
+                toast.type === "error" ? "❌" :
+                  toast.type === "warning" ? "⚠️" : "ℹ️"}
             </span>
             <div className="toast-content">
               <div className="toast-title">
                 {toast.type === "success" ? "Success" :
-                 toast.type === "error" ? "Error" :
-                 toast.type === "warning" ? "Warning" : "Info"}
+                  toast.type === "error" ? "Error" :
+                    toast.type === "warning" ? "Warning" : "Info"}
               </div>
               <div className="toast-message">{toast.message}</div>
             </div>
-            <button 
+            <button
               className="toast-close"
               onClick={() => setToast(prev => ({ ...prev, show: false }))}
             >
@@ -286,27 +313,27 @@ export default function AdminDashboard() {
             setActiveTab("dashboard");
             setMobileMenuOpen(false);
           }} />
-          
+
           <Nav label="👨‍🎓 Create Student" active={activeTab === "create"} onClick={() => {
             setActiveTab("create");
             setMobileMenuOpen(false);
           }} />
-          
+
           <Nav label="👥 Students" active={activeTab === "students"} onClick={() => {
             setActiveTab("students");
             setMobileMenuOpen(false);
           }} />
-          
+
           <Nav label="📝 Review Tasks" active={activeTab === "review"} onClick={() => {
             setActiveTab("review");
             setMobileMenuOpen(false);
           }} />
-          
+
           <Nav label="🔍 Filter Students" active={activeTab === "filter"} onClick={() => {
             setActiveTab("filter");
             setMobileMenuOpen(false);
           }} />
-          
+
           <Nav label="🔎 Search Student" active={activeTab === "search"} onClick={() => {
             setActiveTab("search");
             setMobileMenuOpen(false);
@@ -331,7 +358,23 @@ export default function AdminDashboard() {
               <h1>Admin Overview</h1>
               <p>Monitor student submissions and performance analytics</p>
             </div>
+            <div className="college-toggle">
 
+              <select
+                value={selectedCollege}
+                onChange={(e) => setSelectedCollege(e.target.value)}
+                className="input"
+              >
+
+                {colleges.map(college => (
+                  <option key={college} value={college}>
+                    {college}
+                  </option>
+                ))}
+
+              </select>
+
+            </div>
             <div className="filter-bar">
               <input
                 type="date"
@@ -342,24 +385,24 @@ export default function AdminDashboard() {
             </div>
 
             <div className="stats-grid">
-              <Stat 
-                title="Total Students" 
-                value={analytics.totalStudents} 
+              <Stat
+                title="Total Students"
+                value={analytics.totalStudents}
                 icon="👥"
               />
-              <Stat 
-                title="Submitted" 
-                value={analytics.submittedCount} 
+              <Stat
+                title="Submitted"
+                value={analytics.submittedCount}
                 icon="📤"
               />
-              <Stat 
-                title="Pending" 
-                value={analytics.pendingCount} 
+              <Stat
+                title="Pending"
+                value={analytics.pendingCount}
                 icon="⏳"
               />
-              <Stat 
-                title="Missed" 
-                value={analytics.missingCount} 
+              <Stat
+                title="Missed"
+                value={analytics.missingCount}
                 icon="❌"
               />
             </div>
@@ -387,9 +430,9 @@ export default function AdminDashboard() {
               </button>
 
               {branchAnalytics.length === 0 ? (
-                <Empty 
-                  icon="📊" 
-                  title="No Branch Data" 
+                <Empty
+                  icon="📊"
+                  title="No Branch Data"
                   text="No branch analytics available for the selected date"
                 />
               ) : (
@@ -429,9 +472,9 @@ export default function AdminDashboard() {
                 <h3 className="card-title">❌ Missed Students</h3>
               </div>
               {missedStudents.length === 0 ? (
-                <Empty 
-                  icon="🎉" 
-                  title="All Good!" 
+                <Empty
+                  icon="🎉"
+                  title="All Good!"
                   text="No missed submissions for the selected date"
                 />
               ) : (
@@ -457,8 +500,8 @@ export default function AdminDashboard() {
               <div className="filter-grid">
                 <div className="input-group">
                   <label className="input-label">Date</label>
-                  <input 
-                    type="date" 
+                  <input
+                    type="date"
                     value={filters.date}
                     onChange={e => setFilters({ ...filters, date: e.target.value })}
                     className="input"
@@ -467,7 +510,7 @@ export default function AdminDashboard() {
 
                 <div className="input-group">
                   <label className="input-label">Branch</label>
-                  <input 
+                  <input
                     placeholder="Enter branch"
                     value={filters.branch}
                     onChange={e => setFilters({ ...filters, branch: e.target.value })}
@@ -477,7 +520,7 @@ export default function AdminDashboard() {
 
                 <div className="input-group">
                   <label className="input-label">Status</label>
-                  <select 
+                  <select
                     value={filters.status}
                     onChange={e => setFilters({ ...filters, status: e.target.value })}
                     className="input"
@@ -505,11 +548,11 @@ export default function AdminDashboard() {
                 <h3 className="card-title">Filter Results</h3>
                 <span className="badge badge-primary">{filteredStudents.length} students</span>
               </div>
-              
+
               {filteredStudents.length === 0 ? (
-                <Empty 
-                  icon="🚫" 
-                  title="No Students Found" 
+                <Empty
+                  icon="🚫"
+                  title="No Students Found"
                   text="Try adjusting your filter criteria"
                 />
               ) : (
@@ -522,6 +565,10 @@ export default function AdminDashboard() {
                         <th>College</th>
                         <th>Branch</th>
                         <th>Section</th>
+                        <th>Roll No</th>
+                        <th>College</th>
+                        <th>Branch</th>
+                        <th>Section</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -529,6 +576,10 @@ export default function AdminDashboard() {
                         <tr key={s._id} onClick={() => fetchPerformance(s._id, s.name)}>
                           <td><strong>{s.name}</strong></td>
                           <td>{s.email}</td>
+                          <td>{s.college || "Default College"}</td>
+                          <td>{s.branch || "-"}</td>
+                          <td>{s.section || "-"}</td>
+                          <td>{s.rollNo || "-"}</td>
                           <td>{s.college || "-"}</td>
                           <td><span className="badge badge-success">{s.branch || "-"}</span></td>
                           <td>{s.section || "-"}</td>
@@ -549,42 +600,128 @@ export default function AdminDashboard() {
               <h1>Create Student</h1>
               <p>Add new students to the system</p>
             </div>
-            
+
             <Card>
               <div className="card-header">
                 <h3 className="card-title">Student Information</h3>
               </div>
-              
+
               <div className="form-grid">
                 <div className="input-group">
                   <label className="input-label">Full Name</label>
-                  <Input 
+                  <Input
                     placeholder="Enter student name"
                     value={form.name}
-                    onChange={e => setForm({ ...form, name: e.target.value })} 
+                    onChange={e => setForm({ ...form, name: e.target.value })}
                   />
                 </div>
-                
+
                 <div className="input-group">
                   <label className="input-label">Email Address</label>
-                  <Input 
+                  <Input
                     placeholder="Enter student email"
                     value={form.email}
-                    onChange={e => setForm({ ...form, email: e.target.value })} 
+                    onChange={e => setForm({ ...form, email: e.target.value })}
                   />
                 </div>
-                
+
                 <div className="input-group">
                   <label className="input-label">Password</label>
-                  <Input 
+                  <Input
                     type="password"
                     placeholder="Enter password"
                     value={form.password}
-                    onChange={e => setForm({ ...form, password: e.target.value })} 
+                    onChange={e => setForm({ ...form, password: e.target.value })}
                   />
+                  <div className="input-group">
+                    <label className="input-label">College</label>
+
+                    <select
+                      className="input"
+                      value={form.college}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          college: e.target.value,
+                          branch: ""
+                        })
+                      }
+                    >
+
+                      <option value="">Select College</option>
+
+                      {colleges
+                        .filter(c => c !== "All Colleges")
+                        .map(college => (
+
+                          <option key={college} value={college}>
+                            {college}
+                          </option>
+
+                        ))}
+
+                    </select>
+                  </div>
+
+                  <div className="input-group">
+                    <label className="input-label">Branch</label>
+
+                    <select
+                      className="input"
+                      value={form.branch}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          branch: e.target.value
+                        })
+                      }
+                    >
+
+                      <option value="">Select Branch</option>
+
+                      {(branchesByCollege[form.college] || []).map(branch => (
+
+                        <option key={branch} value={branch}>
+                          {branch}
+                        </option>
+
+                      ))}
+
+                    </select>
+                  </div>
+
+                  <div className="input-group">
+                    <label className="input-label">Section</label>
+
+                    <Input
+                      placeholder="Enter Section"
+                      value={form.section}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          section: e.target.value
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="input-group">
+                    <label className="input-label">Roll Number</label>
+
+                    <Input
+                      placeholder="Enter Roll Number"
+                      value={form.rollNo}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          rollNo: e.target.value
+                        })
+                      }
+                    />
+                  </div>
                 </div>
               </div>
-              
+
               <button className="btn-primary create-btn" onClick={createStudent}>
                 Create Student
               </button>
@@ -659,14 +796,14 @@ export default function AdminDashboard() {
                 <div className="modal-box">
                   <div className="modal-header">
                     <h3 className="modal-title">Reset Password</h3>
-                    <button 
+                    <button
                       className="modal-close"
                       onClick={() => setResetUser(null)}
                     >
                       ✕
                     </button>
                   </div>
-                  
+
                   <div className="modal-content">
                     <div className="user-info">
                       <div className="user-avatar">
@@ -677,7 +814,7 @@ export default function AdminDashboard() {
                         <p>{resetUser.email}</p>
                       </div>
                     </div>
-                    
+
                     <div className="input-group">
                       <label className="input-label">New Password</label>
                       <input
@@ -688,7 +825,7 @@ export default function AdminDashboard() {
                         className="input"
                       />
                     </div>
-                    
+
                     <div className="modal-actions">
                       <button className="btn-success" onClick={resetStudentPassword}>
                         Update Password
@@ -707,7 +844,7 @@ export default function AdminDashboard() {
                 <div className="card-header">
                   <h3 className="card-title">{selectedStudent}'s Performance</h3>
                 </div>
-                
+
                 <div className="performance-grid">
                   <div className="performance-stat">
                     <div className="stat-icon">📅</div>
@@ -716,7 +853,7 @@ export default function AdminDashboard() {
                       <p>Total Days</p>
                     </div>
                   </div>
-                  
+
                   <div className="performance-stat">
                     <div className="stat-icon">✅</div>
                     <div>
@@ -724,7 +861,7 @@ export default function AdminDashboard() {
                       <p>Submitted</p>
                     </div>
                   </div>
-                  
+
                   <div className="performance-stat">
                     <div className="stat-icon">❌</div>
                     <div>
@@ -732,7 +869,7 @@ export default function AdminDashboard() {
                       <p>Missed</p>
                     </div>
                   </div>
-                  
+
                   <div className="performance-stat">
                     <div className="stat-icon">📈</div>
                     <div>
@@ -772,9 +909,9 @@ export default function AdminDashboard() {
               </div>
 
               {pending.length === 0 ? (
-                <Empty 
-                  icon="📝" 
-                  title="No Pending Submissions" 
+                <Empty
+                  icon="📝"
+                  title="No Pending Submissions"
                   text="All submissions have been reviewed for the selected date"
                 />
               ) : (
@@ -788,9 +925,9 @@ export default function AdminDashboard() {
                         <div>
                           <h4>{p.studentId?.name || "Deleted Student"}</h4>
                           <p>{p.studentId?.email || "-"}</p>
-                          <a 
-                            href={p.linkedinUrl} 
-                            target="_blank" 
+                          <a
+                            href={p.linkedinUrl}
+                            target="_blank"
                             rel="noreferrer"
                             className="view-link"
                           >
@@ -798,7 +935,7 @@ export default function AdminDashboard() {
                           </a>
                         </div>
                       </div>
-                      
+
                       <div className="review-actions">
                         <div className="input-group">
                           <input
@@ -808,16 +945,16 @@ export default function AdminDashboard() {
                             className="input"
                           />
                         </div>
-                        
+
                         <div className="action-buttons">
-                          <button 
+                          <button
                             className="btn-success approve-btn"
                             onClick={() => reviewSubmission(p._id, "Approved")}
                             data-tooltip="Approve Submission"
                           >
                             ✅ Approve
                           </button>
-                          <button 
+                          <button
                             className="btn-danger reject-btn"
                             onClick={() => reviewSubmission(p._id, "Rejected")}
                             data-tooltip="Reject Submission"
@@ -846,7 +983,7 @@ export default function AdminDashboard() {
               <div className="card-header">
                 <h3 className="card-title">Student Search</h3>
               </div>
-              
+
               <div className="search-container">
                 <div className="input-group">
                   <input
@@ -857,7 +994,7 @@ export default function AdminDashboard() {
                   />
                   <span className="input-icon">🔍</span>
                 </div>
-                
+
                 <button className="btn-primary search-btn" onClick={searchStudent}>
                   Search Student
                 </button>
@@ -865,9 +1002,9 @@ export default function AdminDashboard() {
             </Card>
 
             {!searchResult ? (
-              <Empty 
-                icon="👤" 
-                title="Search for a Student" 
+              <Empty
+                icon="👤"
+                title="Search for a Student"
                 text="Enter student details to view their performance metrics"
               />
             ) : (
@@ -876,7 +1013,7 @@ export default function AdminDashboard() {
                   <h3 className="card-title">👤 Student Details</h3>
                   <span className="badge badge-success">Found</span>
                 </div>
-                
+
                 <div className="student-profile">
                   <div className="profile-header">
                     <div className="profile-avatar">
@@ -887,7 +1024,7 @@ export default function AdminDashboard() {
                       <p>{searchResult.student.email}</p>
                     </div>
                   </div>
-                  
+
                   <div className="profile-details">
                     <div className="detail-item">
                       <span className="detail-label">Roll No:</span>
@@ -899,10 +1036,10 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="performance-section">
                   <h4 className="section-title">📊 Performance Metrics</h4>
-                  
+
                   <div className="metrics-grid">
                     <div className="metric-card">
                       <div className="metric-icon">📅</div>
@@ -911,7 +1048,7 @@ export default function AdminDashboard() {
                         <p>Total Days</p>
                       </div>
                     </div>
-                    
+
                     <div className="metric-card">
                       <div className="metric-icon">✅</div>
                       <div className="metric-content">
@@ -919,7 +1056,7 @@ export default function AdminDashboard() {
                         <p>Approved</p>
                       </div>
                     </div>
-                    
+
                     <div className="metric-card">
                       <div className="metric-icon">⏳</div>
                       <div className="metric-content">
@@ -927,7 +1064,7 @@ export default function AdminDashboard() {
                         <p>Pending</p>
                       </div>
                     </div>
-                    
+
                     <div className="metric-card">
                       <div className="metric-icon">❌</div>
                       <div className="metric-content">

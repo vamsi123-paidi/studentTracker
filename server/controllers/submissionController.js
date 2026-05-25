@@ -112,10 +112,48 @@ exports.getMyPerformance = async (req, res) => {
  * ADMIN → GET PENDING SUBMISSIONS (DATE-WISE)
  */
 exports.getPendingByDate = async (req, res) => {
-  const date = req.query.date; // YYYY-MM-DD
-  const data = await Submission.find({ date, status: "Pending" })
-    .populate("studentId", "name email");
-  res.json(data);
+
+  try {
+
+    const { date, college } = req.query;
+
+    let query = {
+      date,
+      status: "Pending"
+    };
+
+    const data = await Submission.find(query)
+      .populate({
+        path: "studentId",
+        select: "name email college branch"
+      });
+
+    // ================= FILTER BY COLLEGE =================
+
+    const filtered = data.filter(s => {
+
+      if (!s.studentId) return false;
+
+      if (
+        college &&
+        college !== "All Colleges"
+      ) {
+        return s.studentId.college === college;
+      }
+
+      return true;
+    });
+
+    res.json(filtered);
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      message: "Pending fetch failed"
+    });
+  }
 };
 
 /**
@@ -142,46 +180,132 @@ exports.reviewSubmission = async (req, res) => {
  * ADMIN → DASHBOARD ANALYTICS (DATE-WISE)
  */
 exports.getAdminAnalytics = async (req, res) => {
-  const date = req.query.date;
 
-  const totalStudents = await User.countDocuments({ role: "student" });
+  try {
 
-  const submissions = await Submission.find({ date });
+    const { date, college } = req.query;
 
-  const submittedCount = submissions.length;
-  const pendingCount = submissions.filter(s => s.status === "Pending").length;
-  const approvedCount = submissions.filter(s => s.status === "Approved").length;
-  const rejectedCount = submissions.filter(s => s.status === "Rejected").length;
+    let studentFilter = {
+      role: "student"
+    };
 
-  const missingCount = totalStudents - submittedCount;
+    // ================= COLLEGE FILTER =================
 
-  res.json({
-    totalStudents,
-    submittedCount,
-    pendingCount,
-    approvedCount,
-    rejectedCount,
-    missingCount
-  });
+    if (
+      college &&
+      college !== "All Colleges"
+    ) {
+      studentFilter.college = college;
+    }
+
+    // ================= GET STUDENTS =================
+
+    const students = await User.find(studentFilter)
+      .select("_id");
+
+    const studentIds = students.map(s => s._id.toString());
+
+    const totalStudents = students.length;
+
+    // ================= GET SUBMISSIONS =================
+
+    const submissions = await Submission.find({
+      date
+    });
+
+    // only selected college submissions
+    const filteredSubmissions = submissions.filter(s =>
+      studentIds.includes(s.studentId.toString())
+    );
+
+    const submittedCount = filteredSubmissions.length;
+
+    const pendingCount =
+      filteredSubmissions.filter(
+        s => s.status === "Pending"
+      ).length;
+
+    const approvedCount =
+      filteredSubmissions.filter(
+        s => s.status === "Approved"
+      ).length;
+
+    const rejectedCount =
+      filteredSubmissions.filter(
+        s => s.status === "Rejected"
+      ).length;
+
+    const missingCount =
+      totalStudents - submittedCount;
+
+    res.json({
+      totalStudents,
+      submittedCount,
+      pendingCount,
+      approvedCount,
+      rejectedCount,
+      missingCount
+    });
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      message: "Analytics failed"
+    });
+  }
 };
 
 exports.getMissedStudents = async (req, res) => {
-  const date = req.query.date;
 
-  // all students
-  const students = await User.find({ role: "student" }).select("name email");
+  try {
 
-  // students who submitted
-  const submissions = await Submission.find({ date }).select("studentId");
+    const { date, college } = req.query;
 
-  const submittedIds = submissions.map(s => s.studentId.toString());
+    let studentFilter = {
+      role: "student"
+    };
 
-  // students who did NOT submit
-  const missed = students.filter(
-    s => !submittedIds.includes(s._id.toString())
-  );
+    if (
+      college &&
+      college !== "All Colleges"
+    ) {
+      studentFilter.college = college;
+    }
 
-  res.json(missed);
+    // ================= GET STUDENTS =================
+
+    const students = await User.find(studentFilter)
+      .select("name email college branch");
+
+    // ================= GET SUBMISSIONS =================
+
+    const submissions = await Submission.find({
+      date
+    }).select("studentId");
+
+    const submittedIds =
+      submissions.map(s => s.studentId.toString());
+
+    // ================= MISSED STUDENTS =================
+
+    const missed = students.filter(
+      s => !submittedIds.includes(
+        s._id.toString()
+      )
+    );
+
+    res.json(missed);
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      message: "Failed to fetch missed students"
+    });
+  }
 };
 
 exports.getStudentPerformance = async (req, res) => {
@@ -337,15 +461,25 @@ exports.getFilteredStudents = async (req, res) => {
 
 exports.getBranchAnalytics = async (req, res) => {
   try {
-    const { date } = req.query;
-
+    const { date, college } = req.query;
     if (!date) {
       return res.status(400).json({ message: "Date is required" });
     }
 
     // Get all students with branch info
-    const students = await User.find({ role: "student" }).select("branch");
+    let studentFilter = {
+      role: "student"
+    };
 
+    if (
+      college &&
+      college !== "All Colleges"
+    ) {
+      studentFilter.college = college;
+    }
+
+    const students = await User.find(studentFilter)
+      .select("branch college");
     // Group students by branch
     const branchMap = {};
     students.forEach(s => {
@@ -405,15 +539,22 @@ exports.getBranchAnalytics = async (req, res) => {
 
 exports.downloadBranchReport = async (req, res) => {
   try {
-    const { date, branch } = req.query;
-
+    const { date, branch, college } = req.query;
     if (!date) {
       return res.status(400).json({ message: "Date is required" });
     }
 
     // 1️⃣ Get students (branch filter optional)
-    let studentQuery = { role: "student" };
-    if (branch && branch !== "all") {
+    let studentQuery = {
+      role: "student"
+    };
+
+    if (
+      college &&
+      college !== "All Colleges"
+    ) {
+      studentQuery.college = college;
+    } if (branch && branch !== "all") {
       studentQuery.branch = branch;
     }
 

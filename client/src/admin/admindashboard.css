@@ -918,18 +918,24 @@ select.input {
   gap: 1.5rem;
 }
 
-.review-card {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 3rem;
-  padding: 2rem;
-  margin-bottom: 1rem;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  transition: var(--transition);
-  align-items: start;
+.review-card{
   width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+
+  padding: 18px;
+  border-radius: 16px;
+
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+
+  margin-bottom: 18px;
+
+  box-sizing: border-box;
+  overflow: hidden;
+  flex-wrap: wrap;
 }
 
 .review-card:hover {
@@ -938,11 +944,12 @@ select.input {
   transform: translateX(8px);
 }
 
-.review-info {
+.review-info{
   display: flex;
-  align-items: flex-start;
-  gap: 1.5rem;
-  min-width: 300px;
+  gap: 14px;
+  flex: 1;
+  min-width: 250px;
+  word-break: break-word;
 }
 
 .review-info h4 {
@@ -980,18 +987,19 @@ select.input {
   text-decoration: none;
 }
 
-.review-actions {
+.review-actions{
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  min-width: 350px;
-  max-width: 400px;
+  gap: 12px;
+
+  width: 100%;
+  max-width: 320px;
 }
 
-.action-buttons {
+.action-buttons{
   display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 /* Search Container */
@@ -2107,4 +2115,25 @@ select.input {
 .review-card:hover,
 .student-row:hover {
   z-index: 2;
+}
+
+@media (max-width: 768px){
+
+  .review-card{
+    flex-direction: column;
+  }
+
+  .review-actions{
+    max-width: 100%;
+  }
+
+  .action-buttons{
+    width: 100%;
+  }
+
+  .approve-btn,
+  .reject-btn{
+    flex: 1;
+  }
+
 }
